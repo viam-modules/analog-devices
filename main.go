@@ -4,13 +4,16 @@ package main
 import (
 	"context"
 
+	"analog-devices/tmc5072"
+
+	"go.viam.com/rdk/components/motor"
 	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/module"
 	"go.viam.com/utils"
 )
 
 func main() {
-	utils.ContextualMain(mainWithArgs, module.NewLoggerFromArgs("MODULE"))
+	utils.ContextualMain(mainWithArgs, module.NewLoggerFromArgs("analog-devices"))
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger logging.Logger) error {
@@ -19,7 +22,7 @@ func mainWithArgs(ctx context.Context, args []string, logger logging.Logger) err
 		return err
 	}
 
-	if err = module.AddModelFromRegistry(ctx, COMPONENT.API, MODEL.Model); err != nil {
+	if err = module.AddModelFromRegistry(ctx, motor.API, tmc5072.Model); err != nil {
 		return err
 	}
 
