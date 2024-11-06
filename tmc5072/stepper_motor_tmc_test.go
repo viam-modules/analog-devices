@@ -9,13 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"go.viam.com/test"
-
 	"go.viam.com/rdk/components/board/genericlinux/buses"
 	"go.viam.com/rdk/components/motor"
 	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/resource"
 	"go.viam.com/rdk/testutils/inject"
+	"go.viam.com/test"
 )
 
 type fakeSpiHandle struct {
@@ -99,7 +98,7 @@ func TestRPMBounds(t *testing.T) {
 	fakeSpiHandle, fakeSpi := newFakeSpi(t)
 	var deps resource.Dependencies
 
-	mc := TMC5072Config{
+	mc := Config{
 		SPIBus:           "3",
 		ChipSelect:       "40",
 		Index:            1,
@@ -171,7 +170,7 @@ func TestTMCStepperMotor(t *testing.T) {
 	fakeSpiHandle, fakeSpi := newFakeSpi(t)
 	var deps resource.Dependencies
 
-	mc := TMC5072Config{
+	mc := Config{
 		SPIBus:           "main",
 		ChipSelect:       "40",
 		Index:            1,

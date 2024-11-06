@@ -11,14 +11,13 @@ import (
 
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
-	"go.viam.com/utils"
-
 	"go.viam.com/rdk/components/board"
 	"go.viam.com/rdk/components/board/genericlinux/buses"
 	"go.viam.com/rdk/components/motor"
 	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/operation"
 	"go.viam.com/rdk/resource"
+	"go.viam.com/utils"
 )
 
 // PinConfig defines the mapping of where motor are wired.
@@ -26,8 +25,8 @@ type PinConfig struct {
 	EnablePinLow string `json:"en_low,omitempty"`
 }
 
-// TMC5072Config describes the configuration of a motor.
-type TMC5072Config struct {
+// Config describes the configuration of a motor.
+type Config struct {
 	Pins             PinConfig `json:"pins,omitempty"`
 	BoardName        string    `json:"board,omitempty"` // used solely for the PinConfig
 	MaxRPM           float64   `json:"max_rpm,omitempty"`
@@ -48,7 +47,7 @@ type TMC5072Config struct {
 var Model = resource.NewModel("viam", "analog-devices", "tmc5072")
 
 // Validate ensures all parts of the config are valid.
-func (config *TMC5072Config) Validate(path string) ([]string, error) {
+func (config *Config) Validate(path string) ([]string, error) {
 	var deps []string
 	if config.Pins.EnablePinLow != "" {
 		if config.BoardName == "" {
@@ -75,7 +74,7 @@ func (config *TMC5072Config) Validate(path string) ([]string, error) {
 }
 
 func init() {
-	resource.RegisterComponent(motor.API, Model, resource.Registration[motor.Motor, *TMC5072Config]{
+	resource.RegisterComponent(motor.API, Model, resource.Registration[motor.Motor, *Config]{
 		Constructor: newMotor,
 	})
 }
@@ -151,7 +150,7 @@ const (
 // newMotor returns a TMC5072 driven motor.
 func newMotor(ctx context.Context, deps resource.Dependencies, c resource.Config, logger logging.Logger,
 ) (motor.Motor, error) {
-	conf, err := resource.NativeConfig[*TMC5072Config](c)
+	conf, err := resource.NativeConfig[*Config](c)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +160,7 @@ func newMotor(ctx context.Context, deps resource.Dependencies, c resource.Config
 
 // makeMotor returns a TMC5072 driven motor. It is separate from NewMotor, above, so you can inject
 // a mock SPI bus in here during testing.
-func makeMotor(ctx context.Context, deps resource.Dependencies, c TMC5072Config, name resource.Name,
+func makeMotor(ctx context.Context, deps resource.Dependencies, c Config, name resource.Name,
 	logger logging.Logger, bus buses.SPI,
 ) (motor.Motor, error) {
 	if c.MaxRPM == 0 {
