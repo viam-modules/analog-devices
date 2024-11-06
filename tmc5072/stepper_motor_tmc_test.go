@@ -1,6 +1,6 @@
 //go:build linux
 
-// Package tmcstepper contains the TMC stepper motor driver. This file contains unit tests for it.
+// Package tmc5072 contains the TMC stepper motor driver. This file contains unit tests for it.
 package tmc5072
 
 import (

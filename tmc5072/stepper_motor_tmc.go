@@ -1,6 +1,6 @@
 //go:build linux
 
-// Package tmcstepper implements a TMC stepper motor.
+// Package tmc5072 implements a TMC stepper motor.
 package tmc5072
 
 import (
@@ -44,7 +44,8 @@ type TMC5072Config struct {
 	HoldDelay        int32     `json:"hold_delay,omitempty"`   // 0=instant powerdown, 1-15=delay * 2^18 clocks, 6 default
 }
 
-var model = resource.DefaultModelFamily.WithModel("TMC5072")
+// Model for viam supported analog-devices tmc5072 motor.
+var Model = resource.NewModel("viam", "analog-devices", "tmc5072")
 
 // Validate ensures all parts of the config are valid.
 func (config *TMC5072Config) Validate(path string) ([]string, error) {
@@ -74,7 +75,7 @@ func (config *TMC5072Config) Validate(path string) ([]string, error) {
 }
 
 func init() {
-	resource.RegisterComponent(motor.API, model, resource.Registration[motor.Motor, *TMC5072Config]{
+	resource.RegisterComponent(motor.API, Model, resource.Registration[motor.Motor, *TMC5072Config]{
 		Constructor: newMotor,
 	})
 }
