@@ -3,11 +3,15 @@
   "module_id": "viam:analog-devices",
   "visibility": "public",
   "url": "https://github.com/viam-modules/analog-devices",
-  "description": "Go module for analog-devices tmc5072 motor, compatible with Viam",
+  "description": "Go module for analog-devices tmc5072 motor and analog-devices axdl345 movement sensor, compatible with Viam",
   "models": [
     {
       "api": "rdk:component:motor",
       "model": "viam:analog-devices:tmc5072"
+    },
+    {
+      "api": "rdk:component:movement_sensor",
+      "model": "viam:analog-devices:adxl345"
     }
   ],
   "build": {
