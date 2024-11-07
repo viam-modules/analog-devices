@@ -1,10 +1,12 @@
 # [`analog-devices` module](https://github.com/viam-modules/analog-devices)
 
-This [analog-devices module](https://app.viam.com/module/viam/analog-devices) implements a analog-devices [TMC5072 chip](https://www.trinamic.com/support/eval-kits/details/tmc5072-bob/) for a stepper motor using the [`rdk:component:motor` API](https://docs.viam.com/appendix/apis/components/motor/).
+This [analog-devices module](https://app.viam.com/module/viam/analog-devices) implements an analog-devices [TMC5072 chip](https://www.trinamic.com/support/eval-kits/details/tmc5072-bob/) for a stepper motor using the [`rdk:component:motor` API](https://docs.viam.com/appendix/apis/components/motor/), and an analog-devices [ADXL345 digital accelerometer](https://www.analog.com/en/products/adxl345.html) using the [`rdk:component:movement_sensor` API](https://docs.viam.com/appendix/apis/components/movement-sensor/).
 
-Whereas a basic low-level stepper driver supported by the [`gpiostepper` model](/components/motor/gpiostepper/) sends power to a stepper motor based on PWM signals from GPIO pins, the TMC5072 chip uses SPI bus to communicate with the board, does some processing on the chip itself, and provides convenient features including StallGuard2<sup>TM</sup>.
+See [Configure your tmc5072 motor](#Configure-your-tmc5072-motor) or [Configure your adxl345 movement sensor](Configure-your-adxl345-movement-sensor) for more information on configuring these components with Viam.
 
 ## Configure your tmc5072 motor
+
+Whereas a basic low-level stepper driver supported by the [`gpiostepper` model](/components/motor/gpiostepper/) sends power to a stepper motor based on PWM signals from GPIO pins, the TMC5072 chip uses SPI bus to communicate with the board, does some processing on the chip itself, and provides convenient features including StallGuard2<sup>TM</sup>.
 
 > [!NOTE]
 > Before configuring your motor, you must [create a machine](https://docs.viam.com/cloud/machines/#add-a-new-machine).
@@ -127,3 +129,99 @@ For more information, see the Go SDK Docs on [`Jog`](https://pkg.go.dev/go.viam.
 // Run the motor indefinitely at 70 rpm
 resp, err := myMotorComponent.DoCommand(ctx, map[string]interface{}{"command": "jog", "rpm": 70})
 ```
+
+## Configure your adxl345 movement sensor
+
+This three axis accelerometer supplies linear acceleration data, supporting the `LinearAcceleration` method.
+
+> [!NOTE]
+> Before configuring your motor, you must [create a machine](https://docs.viam.com/cloud/machines/#add-a-new-machine).
+
+Navigate to the [**CONFIGURE** tab](https://docs.viam.com/configure/) of your [machine](https://docs.viam.com/fleet/machines/) in the [Viam app](https://app.viam.com/).
+[Add motor / analog-devices:tmc5072 to your machine](https://docs.viam.com/configure/#components).
+
+On the new component panel, copy and paste the following attribute template into your motor's attributes field:
+
+```json
+{
+    "board": "<your-board-name>",
+    "i2c_bus": "<your-i2c-bus-index-on-board>",
+    "use_alternate_i2c_address": <boolean>,
+    "tap": {
+      "accelerometer_pin": <int>,
+      "interrupt_pin": "<your-digital-interrupt-name-on-board>",
+      "exclude_x": <boolean>,
+      "exclude_y": <boolean>,
+      "exclude_z": <boolean>,
+      "threshold": <float>,
+      "dur_us": <float>
+    },
+    "free_fall": {
+      "accelerometer_pin": <int>,
+      "interrupt_pin": "<your-digital-interrupt-name-on-board>",
+      "threshold": <float>,
+      "time_ms": <float>
+    }
+}
+```
+
+### Attributes
+
+The following attributes are available for `viam:analog-devices:adxl345` movement sensors:
+
+| Attribute | Type | Required? | Description |
+| --------- | ---- | --------- | ----------  |
+| `i2c_bus` | string | **Required** | The index of the I2C bus on the board your device is connected to. Often a number. <br> Example: "2"  |
+| `use_alternate_i2c_address` | bool | Optional | Depends on whether you wire SDO low (leaving the default address of 0x53) or high (making the address 0x1D). If high, set true. If low, set false or omit the attribute. <br> Default: `false` |
+| `board` | string | Optional | The `name` of the [board](https://docs.viam.com/components/board/) to which the device is wired. Only needed if you've configured any interrupt functionality. |
+| `tap` | object | Optional | Holds the configuration values necessary to use the tap detection interrupt on the ADXL345. See [Tap attributes](#tap-attributes). |
+| `free_fall` | object | Optional | Holds the configuration values necessary to use the free-fall detection interrupt on the ADXL345. See [Freefall attributes](#freefall-attributes). |
+
+### Tap attributes
+
+Inside the `tap` object, you can include the following attributes:
+
+<!-- prettier-ignore -->
+| Name                | Type   | Required? | Description |
+| ------------------- | ------ | --------- | ----------- |
+| `accelerometer_pin` | int    | **Required** | On the accelerometer you can choose to send the interrupts to int1 or int2. Specify this by setting this config value to `1` or `2`. |
+| `interrupt_pin`     | string | **Required** | The `name` of the digital interrupt you configured for the pin on the [board](https://docs.viam.com/components/board/) wired to the `accelerometer_pin`. |
+| `exclude_x`         | bool   | Optional     | Tap detection defaults to all three axes. Exclude the x axis by setting this to true. <br> Default: `false` |
+| `exclude_y`         | bool   | Optional     | Tap detection defaults to all three axes. Exclude the y axis by setting this to true. <br> Default: `false` |
+| `exclude_z`         | bool   | Optional     | Tap detection defaults to all three axes. Exclude the z axis by setting this to true. <br> Default: `false` |
+| `threshold`         | float  | Optional     | The magnitude of the threshold value for tap interrupt (in milligrams, between `0` and `15,937`). <br> Default: `3000` |
+| `dur_us`            | float  | Optional     | Unsigned time value representing maximum time that an event must be above the `threshold` to qualify as a tap event (in microseconds, between 0 and 159,375). <br> Default: `10000` |
+
+### Freefall attributes
+
+Inside the `freefall` object, you can include the following attributes:
+
+<!-- prettier-ignore -->
+| Name                | Type   | Required? | Description |
+| ------------------- | ------ | --------- | ----------- |
+| `accelerometer_pin` | int    | **Required** | On the accelerometer you can choose to send the interrupts to int1 or int2. Specify this by setting this config value to `1` or `2`. |
+| `interrupt_pin`     | string | **Required** | The `name` of the digital interrupt you configured for the pin on the [board](https://docs.viam.com/components/board/) wired to the `accelerometer_pin`. |
+| `threshold`         | float  | Optional     | The acceleration on each axis is compared with this value to determine if a free-fall event occurred (in milligrams, between `0` and `15,937`). <br> Default: `437.5` |
+| `time_ms`           | float  | Optional     | Unsigned time value representing the minimum time that the value of all axes must be less than `threshold` to generate a free-fall interrupt (in milliseconds, between 0 and 1,275). <br> Default: `160` |
+
+## Example configuration
+
+### `viam:analog-devices:adxl345`
+```json
+  {
+      "name": "<your-analog-devices-adxl345-movement-sensor-name>",
+      "model": "viam:analog-devices:adxl345",
+      "type": "movement_sensor",
+      "namespace": "rdk",
+      "attributes": {
+        "i2c_bus": "2",
+        "use_alternate_i2c_address": false
+      }
+      "depends_on": []
+  }
+```
+
+### Next Steps
+- To test your movement sensor, expand the **TEST** section of its configuration pane or go to the [**CONTROL** tab](https://docs.viam.com/fleet/control/).
+- To write code against your movement sensor, use one of the [available SDKs](https://docs.viam.com/sdks/).
+- To view examples using a movement sensor component, explore [these tutorials](https://docs.viam.com/tutorials/).
