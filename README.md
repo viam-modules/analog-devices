@@ -2,7 +2,7 @@
 
 This [analog-devices module](https://app.viam.com/module/viam/analog-devices) implements an analog-devices [TMC5072 chip](https://www.trinamic.com/support/eval-kits/details/tmc5072-bob/) for a stepper motor using the [`rdk:component:motor` API](https://docs.viam.com/appendix/apis/components/motor/), and an analog-devices [ADXL345 digital accelerometer](https://www.analog.com/en/products/adxl345.html) using the [`rdk:component:movement_sensor` API](https://docs.viam.com/appendix/apis/components/movement-sensor/).
 
-See [Configure your tmc5072 motor](#Configure-your-tmc5072-motor) or [Configure your adxl345 movement sensor](Configure-your-adxl345-movement-sensor) for more information on configuring these components with Viam.
+See [Configure your tmc5072 motor](#Configure-your-tmc5072-motor) or [Configure your adxl345 movement sensor](#Configure-your-adxl345-movement-sensor) for more information on configuring these components with Viam.
 
 ## Configure your tmc5072 motor
 
