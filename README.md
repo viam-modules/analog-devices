@@ -135,12 +135,12 @@ resp, err := myMotorComponent.DoCommand(ctx, map[string]interface{}{"command": "
 This three axis accelerometer supplies linear acceleration data, supporting the `LinearAcceleration` method.
 
 > [!NOTE]
-> Before configuring your motor, you must [create a machine](https://docs.viam.com/cloud/machines/#add-a-new-machine).
+> Before configuring your movement sensor, you must [create a machine](https://docs.viam.com/cloud/machines/#add-a-new-machine).
 
 Navigate to the [**CONFIGURE** tab](https://docs.viam.com/configure/) of your [machine](https://docs.viam.com/fleet/machines/) in the [Viam app](https://app.viam.com/).
-[Add motor / analog-devices:tmc5072 to your machine](https://docs.viam.com/configure/#components).
+[Add movement_sensor / analog-devices:ina219/226 to your machine](https://docs.viam.com/configure/#components).
 
-On the new component panel, copy and paste the following attribute template into your motor's attributes field:
+On the new component panel, copy and paste the following attribute template into your movement sensor's attributes field:
 
 ```json
 {
