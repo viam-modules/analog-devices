@@ -6,7 +6,7 @@ See [Configure your tmc5072 motor](#Configure-your-tmc5072-motor) or [Configure 
 
 ## Configure your tmc5072 motor
 
-Whereas a basic low-level stepper driver supported by the [`gpiostepper` model](/components/motor/gpiostepper/) sends power to a stepper motor based on PWM signals from GPIO pins, the TMC5072 chip uses SPI bus to communicate with the board, does some processing on the chip itself, and provides convenient features including StallGuard2<sup>TM</sup>.
+Whereas a basic low-level stepper driver supported by the [`gpiostepper` model](https://docs.viam.com/components/motor/gpiostepper/) sends power to a stepper motor based on PWM signals from GPIO pins, the TMC5072 chip uses SPI bus to communicate with the board, does some processing on the chip itself, and provides convenient features including StallGuard2<sup>TM</sup>.
 
 > [!NOTE]
 > Before configuring your motor, you must [create a machine](https://docs.viam.com/cloud/machines/#add-a-new-machine).
