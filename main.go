@@ -4,8 +4,8 @@ package main
 import (
 	"context"
 
-	"analog-devices/adxl345"
-	"analog-devices/tmc5072"
+	"github.com/viam-modules/analog-devices/adxl345"
+	"github.com/viam-modules/analog-devices/tmc5072"
 
 	"go.viam.com/rdk/components/motor"
 	"go.viam.com/rdk/components/movementsensor"
