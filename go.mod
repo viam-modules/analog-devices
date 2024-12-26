@@ -1,4 +1,4 @@
-module analog-devices
+module github.com/viam-modules/analog-devices
 
 go 1.23.0
 
