@@ -22,7 +22,7 @@ On the new component panel, copy and paste the following attribute template into
   "chip_select": "<pin-number>",
   "index": "<your-terminal-index>",
   "pins": {
-    "en_low": "<int>",
+    "en_low": "<int>"
   },
   "ticks_per_rotation": <int>,
   "max_acceleration_rpm_per_sec": <float>,
