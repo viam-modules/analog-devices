@@ -20,7 +20,7 @@ On the new component panel, copy and paste the following attribute template into
 {
   "spi_bus": "<your-spi-bus-index>",
   "chip_select": "<pin-number>",
-  "index": "<your-terminal-index>",
+  "index": <your-terminal-index>,
   "pins": {
     "en_low": "<int>"
   },
