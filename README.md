@@ -21,6 +21,7 @@ On the new component panel, copy and paste the following attribute template into
   "spi_bus": "<your-spi-bus-index>",
   "chip_select": "<pin-number>",
   "index": <your-terminal-index>,
+  "board" : "<your-board-name>",
   "pins": {
     "en_low": "<int>"
   },
@@ -43,8 +44,9 @@ The following attributes are available for `viam:analog-devices:tmc5072` motors:
 | --------- | ---- | --------- | ----------  |
 | `spi_bus` | string | **Required** | The index of the SPI bus over which the TMC chip communicates with the board. |
 |`chip_select` | string | **Required** | The chip select number (CSN) that the TMC5072 is wired to. For Raspberry Pis, use `"0"` if the CSN is wired to {{< glossary_tooltip term_id="pin-number" text="pin number" >}} 24 (GPIO 8) on the Pi, or use `"1"` if you wire the CSN to pin 26. The board sets this high or low to let the TMC chip know whether to listen for commands over SPI. |
-| `pins` | object | **Required** | A structure that holds the pin number you are using for `"en_low"`, the enable pin for the driver chip. |
 | `index` | int | **Required** | The index of the part of the chip the motor is wired to. Either `1` or `2`, depending on whether the motor is wired to the "MOTOR1" terminals or the "MOTOR2" terminals, respectively. |
+| `board` | string | **Optional** | Only needed to use the `pins` attribute. The name of the board component you have configured. |
+| `pins` | object | **Optional** | A structure that holds the pin number you are using for `"en_low"`, the enable pin for the driver chip. |
 | `ticks_per_rotation` | int | **Required** | Number of full steps in a rotation. 200 (equivalent to 1.8 degrees per step) is very common. If your data sheet specifies this in terms of degrees per step, divide 360 by that number to get ticks per rotation. |
 | `max_acceleration_rpm_per_sec` | float | Optional | Set a limit on maximum acceleration in revolutions per minute per second. |
 | `sg_thresh` | int | Optional | Stallguard threshold; sets sensitivity of virtual endstop detection when homing. |
