@@ -4,15 +4,18 @@ This [analog-devices module](https://app.viam.com/module/viam/analog-devices) im
 
 See [Configure your tmc5072 motor](#Configure-your-tmc5072-motor) or [Configure your adxl345 movement sensor](#Configure-your-adxl345-movement-sensor) for more information on configuring these components with Viam.
 
+> [!NOTE]
+> Before configuring your motor or movement sensor, you must [create a machine](https://docs.viam.com/cloud/machines/#add-a-new-machine).
+
+Navigate to the [**CONFIGURE** tab](https://docs.viam.com/configure/) of your [machine](https://docs.viam.com/fleet/machines/) in the [Viam app](https://app.viam.com/).
+[Add motor / analog-devices:tmc5072 to your machine](https://docs.viam.com/configure/#components).
+[Add movement_sensor / analog-devices:adxl345 to your machine](https://docs.viam.com/configure/#components).
+
+
 ## Configure your tmc5072 motor
 
 Whereas a basic low-level stepper driver supported by the [`gpiostepper` model](https://docs.viam.com/components/motor/gpiostepper/) sends power to a stepper motor based on PWM signals from GPIO pins, the TMC5072 chip uses SPI bus to communicate with the board, does some processing on the chip itself, and provides convenient features including StallGuard2<sup>TM</sup>.
 
-> [!NOTE]
-> Before configuring your motor, you must [create a machine](https://docs.viam.com/cloud/machines/#add-a-new-machine).
-
-Navigate to the [**CONFIGURE** tab](https://docs.viam.com/configure/) of your [machine](https://docs.viam.com/fleet/machines/) in the [Viam app](https://app.viam.com/).
-[Add motor / analog-devices:tmc5072 to your machine](https://docs.viam.com/configure/#components).
 
 On the new component panel, copy and paste the following attribute template into your motor's attributes field:
 
@@ -133,12 +136,6 @@ resp, err := myMotorComponent.DoCommand(ctx, map[string]interface{}{"command": "
 ## Configure your adxl345 movement sensor
 
 This three axis accelerometer supplies linear acceleration data, supporting the `LinearAcceleration` method.
-
-> [!NOTE]
-> Before configuring your movement sensor, you must [create a machine](https://docs.viam.com/cloud/machines/#add-a-new-machine).
-
-Navigate to the [**CONFIGURE** tab](https://docs.viam.com/configure/) of your [machine](https://docs.viam.com/fleet/machines/) in the [Viam app](https://app.viam.com/).
-[Add movement_sensor / analog-devices:adxl345 to your machine](https://docs.viam.com/configure/#components).
 
 On the new component panel, copy and paste the following attribute template into your movement sensor's attributes field:
 
