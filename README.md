@@ -2,8 +2,9 @@
 
 This [analog-devices module](https://app.viam.com/module/viam/analog-devices) implements an analog-devices [TMC5072 chip](https://www.trinamic.com/support/eval-kits/details/tmc5072-bob/) for a stepper motor using the [`rdk:component:motor` API](https://docs.viam.com/appendix/apis/components/motor/), and an analog-devices [ADXL345 digital accelerometer](https://www.analog.com/en/products/adxl345.html) using the [`rdk:component:movement_sensor` API](https://docs.viam.com/appendix/apis/components/movement-sensor/).
 
-See [Configure your tmc5072 motor](#Configure-your-tmc5072-motor) or [Configure your adxl345 movement sensor](#Configure-your-adxl345-movement-sensor) for more information on configuring these components with Viam.
+The TMC5072 chip uses SPI bus to communicate with the board, does some processing on the chip itself, and provides convenient features including StallGuard2<sup>TM</sup>.
 
+See [Configure your tmc5072 motor](#Configure-your-tmc5072-motor) or [Configure your adxl345 movement sensor](#Configure-your-adxl345-movement-sensor) for more information on configuring these components with Viam.
 
 > [!NOTE]
 > Before configuring your motor or movement sensor, you must [create a machine](https://docs.viam.com/cloud/machines/#add-a-new-machine).
@@ -14,10 +15,38 @@ Navigate to the [**CONFIGURE** tab](https://docs.viam.com/configure/) of your [m
 
 ## Configure your tmc5072 motor
 
-Whereas a basic low-level stepper driver supported by the [`gpiostepper` model](https://docs.viam.com/components/motor/gpiostepper/) sends power to a stepper motor based on PWM signals from GPIO pins, the TMC5072 chip uses SPI bus to communicate with the board, does some processing on the chip itself, and provides convenient features including StallGuard2<sup>TM</sup>.
+On the new component panel, copy and fill in the following required attributes in:
+```json
+{
+  "spi_bus": "0",
+  "chip_select" : "0",
+  "index" : "1",
+  "ticks_per_rotation" : 100
+}
+```
 
-On the new component panel, copy and paste the following attribute template into your motor's attributes field:
+### Attributes
 
+The following attributes are available for `viam:analog-devices:tmc5072` motors:
+
+| Attribute | Type | Required? | Description |
+| --------- | ---- | --------- | ----------  |
+| `spi_bus` | string | **Required** | The index of the SPI bus over which the TMC chip communicates with the board. |
+|`chip_select` | string | **Required** | The pin on the board that allows for spi chip selects, that the TMC5072 is wired to. For example, on a Raspberry Pi, use `"0"` if the CSN is wired to the physical pin number 24 on the Pi, or use `"1"` if you wire the Chip Select to pin 26. The board sets this high or low to let the TMC chip know whether to listen for commands over SPI. |
+| `index` | int | **Required** | The index of the part of the chip the motor is wired to. Either `1` or `2`, depending on whether the motor is wired to the "MOTOR1" terminals or the "MOTOR2" terminals, respectively. |
+| `ticks_per_rotation` | int | **Required** | Number of full steps in a rotation. 200 (equivalent to 1.8 degrees per step) is very common. If your data sheet specifies this in terms of degrees per step, divide 360 by that number to get ticks per rotation. |
+| `pins` | object | **Optional** | A structure that holds the pin number you are using for `"en_low"`, the enable pin for the driver chip. |
+| `max_acceleration_rpm_per_sec` | float | Optional | Set a limit on maximum acceleration in revolutions per minute per second. |
+| `sg_thresh` | int | Optional | Stallguard threshold; sets sensitivity of virtual endstop detection when homing. |
+| `home_rpm` | float | Optional | Speed in revolutions per minute that the motor will turn when executing a Home() command (through DoCommand()). |
+| `cal_factor` | float | Optional | Calibration factor for velocity and acceleration. Compensates for clock source drift when doing time-based calculations. |
+| `run_current` | int | Optional | Set current when motor is turning, from 1-32 as a percentage of rsense voltage. Defaults to 15 if omitted or set to 0. |
+| `hold_current` | int | Optional | Set current when motor is holding a position, from 1-32 as a percentage of rsense voltage. Defaults to 8 if omitted or set to 0. |
+| `hold_delay` | int | Optional | How long to hold full power at a set position before ramping down to `hold_current`. 0=instant powerdown, 1-15=delay * 2^18 clocks, 6 is the default. |
+
+Refer to your motor and motor driver data sheets for specifics.
+
+### Full Config with all optional Attributes
 ```json
 {
   "spi_bus": "<your-spi-bus-index>",
@@ -36,27 +65,6 @@ On the new component panel, copy and paste the following attribute template into
   "hold_delay": <int>
 }
 ```
-
-### Attributes
-
-The following attributes are available for `viam:analog-devices:tmc5072` motors:
-
-| Attribute | Type | Required? | Description |
-| --------- | ---- | --------- | ----------  |
-| `spi_bus` | string | **Required** | The index of the SPI bus over which the TMC chip communicates with the board. |
-|`chip_select` | string | **Required** | The chip select number (CSN) that the TMC5072 is wired to. For Raspberry Pis, use `"0"` if the CSN is wired to {{< glossary_tooltip term_id="pin-number" text="pin number" >}} 24 (GPIO 8) on the Pi, or use `"1"` if you wire the CSN to pin 26. The board sets this high or low to let the TMC chip know whether to listen for commands over SPI. |
-| `pins` | object | **Required** | A structure that holds the pin number you are using for `"en_low"`, the enable pin for the driver chip. |
-| `index` | int | **Required** | The index of the part of the chip the motor is wired to. Either `1` or `2`, depending on whether the motor is wired to the "MOTOR1" terminals or the "MOTOR2" terminals, respectively. |
-| `ticks_per_rotation` | int | **Required** | Number of full steps in a rotation. 200 (equivalent to 1.8 degrees per step) is very common. If your data sheet specifies this in terms of degrees per step, divide 360 by that number to get ticks per rotation. |
-| `max_acceleration_rpm_per_sec` | float | Optional | Set a limit on maximum acceleration in revolutions per minute per second. |
-| `sg_thresh` | int | Optional | Stallguard threshold; sets sensitivity of virtual endstop detection when homing. |
-| `home_rpm` | float | Optional | Speed in revolutions per minute that the motor will turn when executing a Home() command (through DoCommand()). |
-| `cal_factor` | float | Optional | Calibration factor for velocity and acceleration. Compensates for clock source drift when doing time-based calculations. |
-| `run_current` | int | Optional | Set current when motor is turning, from 1-32 as a percentage of rsense voltage. Defaults to 15 if omitted or set to 0. |
-| `hold_current` | int | Optional | Set current when motor is holding a position, from 1-32 as a percentage of rsense voltage. Defaults to 8 if omitted or set to 0. |
-| `hold_delay` | int | Optional | How long to hold full power at a set position before ramping down to `hold_current`. 0=instant powerdown, 1-15=delay * 2^18 clocks, 6 is the default. |
-
-Refer to your motor and motor driver data sheets for specifics.
 
 ## Example configuration
 
@@ -139,9 +147,27 @@ This three axis accelerometer supplies linear acceleration data, supporting the 
 On the new component panel, copy and paste the following attribute template into your movement sensor's attributes field:
 
 ```json
+  "i2c_bus" : "0"
+```
+
+You can configure additional attributes for the sensor, shown in the example json and explained in the attributes table below.  
+### Attributes
+
+The following attributes are available for `viam:analog-devices:adxl345` movement sensors:
+
+| Attribute | Type | Required? | Description |
+| --------- | ---- | --------- | ----------  |
+| `i2c_bus` | string | **Required** | The index of the I2C bus on the board your device is connected to. Often a number. <br> Example: "2"  |
+| `use_alternate_i2c_address` | bool | Optional | Depends on whether you wire SDO low (leaving the default address of 0x53) or high (making the address 0x1D). If high, set true. If low, set false or omit the attribute. <br> Default: `false` |
+| `board` | string | Optional | The `name` of the [board](https://docs.viam.com/components/board/) to which the device is wired. Only needed if you've configured any interrupt functionality. |
+| `tap` | object | Optional | Holds the configuration values necessary to use the tap detection interrupt on the ADXL345. See [Tap attributes](#tap-attributes). |
+| `free_fall` | object | Optional | Holds the configuration values necessary to use the free-fall detection interrupt on the ADXL345. See [Freefall attributes](#freefall-attributes). |
+
+### Example Full Config
+```json
 {
-    "board": "<your-board-name>",
     "i2c_bus": "<your-i2c-bus-index-on-board>",
+    "board": "<your-board-name>",
     "use_alternate_i2c_address": <boolean>,
     "tap": {
       "accelerometer_pin": <int>,
@@ -161,23 +187,10 @@ On the new component panel, copy and paste the following attribute template into
 }
 ```
 
-### Attributes
-
-The following attributes are available for `viam:analog-devices:adxl345` movement sensors:
-
-| Attribute | Type | Required? | Description |
-| --------- | ---- | --------- | ----------  |
-| `i2c_bus` | string | **Required** | The index of the I2C bus on the board your device is connected to. Often a number. <br> Example: "2"  |
-| `use_alternate_i2c_address` | bool | Optional | Depends on whether you wire SDO low (leaving the default address of 0x53) or high (making the address 0x1D). If high, set true. If low, set false or omit the attribute. <br> Default: `false` |
-| `board` | string | Optional | The `name` of the [board](https://docs.viam.com/components/board/) to which the device is wired. Only needed if you've configured any interrupt functionality. |
-| `tap` | object | Optional | Holds the configuration values necessary to use the tap detection interrupt on the ADXL345. See [Tap attributes](#tap-attributes). |
-| `free_fall` | object | Optional | Holds the configuration values necessary to use the free-fall detection interrupt on the ADXL345. See [Freefall attributes](#freefall-attributes). |
-
 ### Tap attributes
 
 Inside the `tap` object, you can include the following attributes:
 
-<!-- prettier-ignore -->
 | Name                | Type   | Required? | Description |
 | ------------------- | ------ | --------- | ----------- |
 | `accelerometer_pin` | int    | **Required** | On the accelerometer you can choose to send the interrupts to int1 or int2. Specify this by setting this config value to `1` or `2`. |
@@ -192,7 +205,6 @@ Inside the `tap` object, you can include the following attributes:
 
 Inside the `freefall` object, you can include the following attributes:
 
-<!-- prettier-ignore -->
 | Name                | Type   | Required? | Description |
 | ------------------- | ------ | --------- | ----------- |
 | `accelerometer_pin` | int    | **Required** | On the accelerometer you can choose to send the interrupts to int1 or int2. Specify this by setting this config value to `1` or `2`. |
