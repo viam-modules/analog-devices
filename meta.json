@@ -9,13 +9,13 @@
       "api": "rdk:component:motor",
       "model": "viam:analog-devices:tmc5072",
       "markdown_link" : "README.md#configure-your-tmc5072-motor",
-      "short_description" : "analog devices tmc5072 stepper motor controlled by spi commands and includes a StallGuard."
+      "short_description" : "motor component model driver for analog-devices tmc5072"
     },
     {
       "api": "rdk:component:movement_sensor",
       "model": "viam:analog-devices:adxl345",
       "markdown_link" : "README.md#configure-your-adxl345-movement-sensor",
-      "short_description" : "analog devices adxl345 three axis accelerometer providing linear acceleration data through i2c."
+      "short_description" : "movement sensor compnent model driver for analog-devices adxl345"
     }
   ],
   "build": {
