@@ -15,7 +15,8 @@ Navigate to the [**CONFIGURE** tab](https://docs.viam.com/configure/) of your [m
 
 ## Configure your tmc5072 motor
 
-On the new component panel, copy and fill in the following required attributes in:
+Copy and paste the following attributes into your JSON configuration:
+
 ```json
 {
   "spi_bus": "0",
