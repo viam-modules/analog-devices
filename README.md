@@ -21,7 +21,7 @@ Copy and paste the following attributes into your JSON configuration:
 {
   "spi_bus": "0",
   "chip_select" : "0",
-  "index" : "1",
+  "index" : 1,
   "ticks_per_rotation" : 100
 }
 ```
