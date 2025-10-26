@@ -73,7 +73,7 @@ func TestValidateConfig(t *testing.T) {
 			I2cBus:    "3",
 			SingleTap: &tapCfg,
 		}
-		deps, err := cfg.Validate("path")
+		deps, _, err := cfg.Validate("path")
 		expectedErr := resource.NewConfigValidationFieldRequiredError("path", "board")
 		test.That(t, err, test.ShouldBeError, expectedErr)
 		test.That(t, deps, test.ShouldBeEmpty)
@@ -81,7 +81,7 @@ func TestValidateConfig(t *testing.T) {
 
 	t.Run("fails with no I2C bus", func(t *testing.T) {
 		cfg := Config{}
-		deps, err := cfg.Validate("path")
+		deps, _, err := cfg.Validate("path")
 		expectedErr := resource.NewConfigValidationFieldRequiredError("path", "i2c_bus")
 		test.That(t, err, test.ShouldBeError, expectedErr)
 		test.That(t, deps, test.ShouldBeEmpty)
@@ -91,7 +91,7 @@ func TestValidateConfig(t *testing.T) {
 		cfg := Config{
 			I2cBus: "3",
 		}
-		deps, err := cfg.Validate("path")
+		deps, _, err := cfg.Validate("path")
 		test.That(t, err, test.ShouldBeNil)
 		test.That(t, len(deps), test.ShouldEqual, 0)
 	})
@@ -106,7 +106,7 @@ func TestValidateConfig(t *testing.T) {
 			I2cBus:    "2",
 			SingleTap: &tapCfg,
 		}
-		deps, err := cfg.Validate("path")
+		deps, _, err := cfg.Validate("path")
 
 		test.That(t, err, test.ShouldBeNil)
 		test.That(t, len(deps), test.ShouldEqual, 1)
