@@ -1,3 +1,4 @@
+// Package for the analog-devices module
 package main
 
 import (
