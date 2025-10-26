@@ -115,12 +115,12 @@ func (freefallCfg *FreeFallConfig) validateFreeFallConfigs() error {
 
 // Validate ensures all parts of the config are valid, and then returns the list of things we
 // depend on.
-func (cfg *Config) Validate(path string) ([]string, error) {
+func (cfg *Config) Validate(path string) ([]string, []string, error) {
 	var deps []string
 	if cfg.BoardName == "" {
 		// The board name is only required for interrupt-related functionality.
 		if cfg.SingleTap != nil || cfg.FreeFall != nil {
-			return nil, resource.NewConfigValidationFieldRequiredError(path, "board")
+			return nil, nil, resource.NewConfigValidationFieldRequiredError(path, "board")
 		}
 	} else {
 		if cfg.SingleTap != nil || cfg.FreeFall != nil {
@@ -129,19 +129,19 @@ func (cfg *Config) Validate(path string) ([]string, error) {
 		}
 	}
 	if cfg.I2cBus == "" {
-		return nil, resource.NewConfigValidationFieldRequiredError(path, "i2c_bus")
+		return nil, nil, resource.NewConfigValidationFieldRequiredError(path, "i2c_bus")
 	}
 	if cfg.SingleTap != nil {
 		if err := cfg.SingleTap.validateTapConfigs(); err != nil {
-			return nil, err
+			return nil, nil,err
 		}
 	}
 	if cfg.FreeFall != nil {
 		if err := cfg.FreeFall.validateFreeFallConfigs(); err != nil {
-			return nil, err
+			return nil, nil,err
 		}
 	}
-	return deps, nil
+	return deps, nil, nil
 }
 
 func init() {

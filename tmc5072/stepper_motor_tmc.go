@@ -47,30 +47,30 @@ type Config struct {
 var Model = resource.NewModel("viam", "analog-devices", "tmc5072")
 
 // Validate ensures all parts of the config are valid.
-func (config *Config) Validate(path string) ([]string, error) {
+func (config *Config) Validate(path string) ([]string, []string, error) {
 	var deps []string
 	if config.Pins.EnablePinLow != "" {
 		if config.BoardName == "" {
-			return nil, resource.NewConfigValidationFieldRequiredError(path, "board")
+			return nil, nil, resource.NewConfigValidationFieldRequiredError(path, "board")
 		}
 		deps = append(deps, config.BoardName)
 	}
 	if config.SPIBus == "" {
-		return nil, resource.NewConfigValidationFieldRequiredError(path, "spi_bus")
+		return nil, nil, resource.NewConfigValidationFieldRequiredError(path, "spi_bus")
 	}
 	if config.ChipSelect == "" {
-		return nil, resource.NewConfigValidationFieldRequiredError(path, "chip_select")
+		return nil, nil, resource.NewConfigValidationFieldRequiredError(path, "chip_select")
 	}
 	if config.Index <= 0 {
-		return nil, resource.NewConfigValidationFieldRequiredError(path, "index")
+		return nil, nil, resource.NewConfigValidationFieldRequiredError(path, "index")
 	}
 	if config.Index > 2 {
-		return nil, errors.New("tmcstepper motor index should be 1 or 2")
+		return nil, nil, errors.New("tmcstepper motor index should be 1 or 2")
 	}
 	if config.TicksPerRotation <= 0 {
-		return nil, resource.NewConfigValidationFieldRequiredError(path, "ticks_per_rotation")
+		return nil, nil, resource.NewConfigValidationFieldRequiredError(path, "ticks_per_rotation")
 	}
-	return deps, nil
+	return deps, nil, nil
 }
 
 func init() {
