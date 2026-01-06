@@ -5,6 +5,7 @@ package tmc5072
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -144,12 +145,26 @@ func TestRPMBounds(t *testing.T) {
 			{33, 0, 0, 0, 0},
 			{33, 0, 0, 0, 0},
 			{160, 0, 0, 0, 0},
+			{164, 0, 0, 21, 8},      // a1
+			{166, 0, 0, 21, 8},      // aMax
+			{170, 0, 0, 21, 8},      // d1
+			{168, 0, 0, 21, 8},      // dMax
+			{163, 0, 0, 0, 1},       // vStart
+			{171, 0, 0, 0, 10},      // vStop
+			{165, 0, 2, 17, 149},    // v1
 			{167, 0, 8, 70, 85},
 			{173, 0, 5, 40, 0},
 			{53, 0, 0, 0, 0},
 			{53, 0, 0, 0, 0},
 		},
 		[][]byte{
+			{0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0},
 			{0, 0, 0, 0, 0},
 			{0, 0, 0, 0, 0},
 			{0, 0, 0, 0, 0},
@@ -232,15 +247,29 @@ func TestTMCStepperMotor(t *testing.T) {
 	t.Run("motor SetRPM testing", func(t *testing.T) {
 		// Test Go forward at half speed
 		fakeSpiHandle.AddExpectedTx([][]byte{
-			{160, 0, 0, 0, 1},
-			{167, 0, 4, 35, 42},
+			{160, 0, 0, 0, 1},       // rampMode
+			{164, 0, 0, 21, 8},      // a1
+			{166, 0, 0, 21, 8},      // aMax
+			{170, 0, 0, 21, 8},      // d1
+			{168, 0, 0, 21, 8},      // dMax
+			{163, 0, 0, 0, 1},       // vStart
+			{171, 0, 0, 0, 10},      // vStop
+			{165, 0, 2, 17, 149},    // v1
+			{167, 0, 4, 35, 42},     // vMax
 		})
 		test.That(t, motorDep.SetRPM(ctx, 250, nil), test.ShouldBeNil)
 
 		// Test Go backward at quarter speed
 		fakeSpiHandle.AddExpectedTx([][]byte{
-			{160, 0, 0, 0, 2},
-			{167, 0, 2, 17, 149},
+			{160, 0, 0, 0, 2},       // rampMode
+			{164, 0, 0, 21, 8},      // a1
+			{166, 0, 0, 21, 8},      // aMax
+			{170, 0, 0, 21, 8},      // d1
+			{168, 0, 0, 21, 8},      // dMax
+			{163, 0, 0, 0, 1},       // vStart
+			{171, 0, 0, 0, 10},      // vStop
+			{165, 0, 2, 17, 149},    // v1
+			{167, 0, 2, 17, 149},    // vMax
 		})
 		test.That(t, motorDep.SetRPM(ctx, -125, nil), test.ShouldBeNil)
 	})
@@ -277,12 +306,26 @@ func TestTMCStepperMotor(t *testing.T) {
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},      // a1
+				{166, 0, 0, 21, 8},      // aMax
+				{170, 0, 0, 21, 8},      // d1
+				{168, 0, 0, 21, 8},      // dMax
+				{163, 0, 0, 0, 1},       // vStart
+				{171, 0, 0, 0, 10},      // vStop
+				{165, 0, 2, 17, 149},    // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 2, 128, 0},
 				{53, 0, 0, 0, 0},
 				{53, 0, 0, 0, 0},
 			},
 			[][]byte{
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
@@ -300,6 +343,13 @@ func TestTMCStepperMotor(t *testing.T) {
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},      // a1
+				{166, 0, 0, 21, 8},      // aMax
+				{170, 0, 0, 21, 8},      // d1
+				{168, 0, 0, 21, 8},      // dMax
+				{163, 0, 0, 0, 1},       // vStart
+				{171, 0, 0, 0, 10},      // vStop
+				{165, 0, 2, 17, 149},    // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 5, 160, 0},
 				{53, 0, 0, 0, 0},
@@ -308,6 +358,13 @@ func TestTMCStepperMotor(t *testing.T) {
 			[][]byte{
 				{0, 8, 98, 98, 7}, // Can be gibberish
 				{0, 0, 3, 32, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
@@ -323,6 +380,13 @@ func TestTMCStepperMotor(t *testing.T) {
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},      // a1
+				{166, 0, 0, 21, 8},      // aMax
+				{170, 0, 0, 21, 8},      // d1
+				{168, 0, 0, 21, 8},      // dMax
+				{163, 0, 0, 0, 1},       // vStart
+				{171, 0, 0, 0, 10},      // vStop
+				{165, 0, 2, 17, 149},    // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 6, 24, 0},
 				{53, 0, 0, 0, 0},
@@ -331,6 +395,13 @@ func TestTMCStepperMotor(t *testing.T) {
 			[][]byte{
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 240, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
@@ -348,12 +419,26 @@ func TestTMCStepperMotor(t *testing.T) {
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},      // a1
+				{166, 0, 0, 21, 8},      // aMax
+				{170, 0, 0, 21, 8},      // d1
+				{168, 0, 0, 21, 8},      // dMax
+				{163, 0, 0, 0, 1},       // vStart
+				{171, 0, 0, 0, 10},      // vStop
+				{165, 0, 2, 17, 149},    // v1
 				{167, 0, 0, 211, 213},
 				{173, 255, 253, 128, 0},
 				{53, 0, 0, 0, 0},
 				{53, 0, 0, 0, 0},
 			},
 			[][]byte{
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
@@ -371,6 +456,13 @@ func TestTMCStepperMotor(t *testing.T) {
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},      // a1
+				{166, 0, 0, 21, 8},      // aMax
+				{170, 0, 0, 21, 8},      // d1
+				{168, 0, 0, 21, 8},      // dMax
+				{163, 0, 0, 0, 1},       // vStart
+				{171, 0, 0, 0, 10},      // vStop
+				{165, 0, 2, 17, 149},    // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 0, 159, 255},
 				{53, 0, 0, 0, 0},
@@ -379,6 +471,13 @@ func TestTMCStepperMotor(t *testing.T) {
 			[][]byte{
 				{0, 8, 98, 98, 7}, // Can be gibberish
 				{0, 0, 3, 32, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
@@ -394,6 +493,13 @@ func TestTMCStepperMotor(t *testing.T) {
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},      // a1
+				{166, 0, 0, 21, 8},      // aMax
+				{170, 0, 0, 21, 8},      // d1
+				{168, 0, 0, 21, 8},      // dMax
+				{163, 0, 0, 0, 1},       // vStart
+				{171, 0, 0, 0, 10},      // vStop
+				{165, 0, 2, 17, 149},    // v1
 				{167, 0, 0, 211, 213},
 				{173, 255, 251, 200, 0},
 				{53, 0, 0, 0, 0},
@@ -402,6 +508,13 @@ func TestTMCStepperMotor(t *testing.T) {
 			[][]byte{
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 240, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
@@ -419,12 +532,26 @@ func TestTMCStepperMotor(t *testing.T) {
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},      // a1
+				{166, 0, 0, 21, 8},      // aMax
+				{170, 0, 0, 21, 8},      // d1
+				{168, 0, 0, 21, 8},      // dMax
+				{163, 0, 0, 0, 1},       // vStart
+				{171, 0, 0, 0, 10},      // vStop
+				{165, 0, 2, 17, 149},    // v1
 				{167, 0, 0, 211, 213},
 				{173, 255, 253, 128, 0},
 				{53, 0, 0, 0, 0},
 				{53, 0, 0, 0, 0},
 			},
 			[][]byte{
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
@@ -442,6 +569,13 @@ func TestTMCStepperMotor(t *testing.T) {
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},      // a1
+				{166, 0, 0, 21, 8},      // aMax
+				{170, 0, 0, 21, 8},      // d1
+				{168, 0, 0, 21, 8},      // dMax
+				{163, 0, 0, 0, 1},       // vStart
+				{171, 0, 0, 0, 10},      // vStop
+				{165, 0, 2, 17, 149},    // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 0, 159, 255},
 				{53, 0, 0, 0, 0},
@@ -450,6 +584,13 @@ func TestTMCStepperMotor(t *testing.T) {
 			[][]byte{
 				{0, 8, 98, 98, 7}, // Can be gibberish
 				{0, 0, 3, 32, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
@@ -465,6 +606,13 @@ func TestTMCStepperMotor(t *testing.T) {
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},      // a1
+				{166, 0, 0, 21, 8},      // aMax
+				{170, 0, 0, 21, 8},      // d1
+				{168, 0, 0, 21, 8},      // dMax
+				{163, 0, 0, 0, 1},       // vStart
+				{171, 0, 0, 0, 10},      // vStop
+				{165, 0, 2, 17, 149},    // v1
 				{167, 0, 0, 211, 213},
 				{173, 255, 251, 200, 0},
 				{53, 0, 0, 0, 0},
@@ -473,6 +621,13 @@ func TestTMCStepperMotor(t *testing.T) {
 			[][]byte{
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 240, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
@@ -490,12 +645,26 @@ func TestTMCStepperMotor(t *testing.T) {
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},      // a1
+				{166, 0, 0, 21, 8},      // aMax
+				{170, 0, 0, 21, 8},      // d1
+				{168, 0, 0, 21, 8},      // dMax
+				{163, 0, 0, 0, 1},       // vStart
+				{171, 0, 0, 0, 10},      // vStop
+				{165, 0, 2, 17, 149},    // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 2, 128, 0},
 				{53, 0, 0, 0, 0},
 				{53, 0, 0, 0, 0},
 			},
 			[][]byte{
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
@@ -513,6 +682,13 @@ func TestTMCStepperMotor(t *testing.T) {
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},      // a1
+				{166, 0, 0, 21, 8},      // aMax
+				{170, 0, 0, 21, 8},      // d1
+				{168, 0, 0, 21, 8},      // dMax
+				{163, 0, 0, 0, 1},       // vStart
+				{171, 0, 0, 0, 10},      // vStop
+				{165, 0, 2, 17, 149},    // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 5, 160, 0},
 				{53, 0, 0, 0, 0},
@@ -521,6 +697,13 @@ func TestTMCStepperMotor(t *testing.T) {
 			[][]byte{
 				{0, 8, 98, 98, 7}, // Can be gibberish
 				{0, 0, 3, 32, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
@@ -536,6 +719,13 @@ func TestTMCStepperMotor(t *testing.T) {
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},      // a1
+				{166, 0, 0, 21, 8},      // aMax
+				{170, 0, 0, 21, 8},      // d1
+				{168, 0, 0, 21, 8},      // dMax
+				{163, 0, 0, 0, 1},       // vStart
+				{171, 0, 0, 0, 10},      // vStop
+				{165, 0, 2, 17, 149},    // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 6, 24, 0},
 				{53, 0, 0, 0, 0},
@@ -544,6 +734,13 @@ func TestTMCStepperMotor(t *testing.T) {
 			[][]byte{
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 240, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
@@ -739,5 +936,127 @@ func TestTMCStepperMotor(t *testing.T) {
 		test.That(t, err, test.ShouldBeNil)
 		fakeSpiHandle.ExpectDone()
 		test.That(t, m.Close(context.Background()), test.ShouldBeNil)
+	})
+}
+
+func TestRampParametersConfig(t *testing.T) {
+	t.Run("default config with no ramp_parameters in JSON", func(t *testing.T) {
+		// JSON blob with no ramp_parameters field
+		jsonBlob := `{
+			"spi_bus": "main",
+			"chip_select": "40",
+			"index": 1,
+			"ticks_per_rotation": 200,
+			"max_rpm": 500,
+			"max_acceleration_rpm_per_sec": 300
+		}`
+
+		var cfg Config
+		err := json.Unmarshal([]byte(jsonBlob), &cfg)
+		test.That(t, err, test.ShouldBeNil)
+
+		// Validate the config
+		_, _, err = cfg.Validate("")
+		test.That(t, err, test.ShouldBeNil)
+
+		// Verify that RampParameters is nil (not provided in JSON)
+		test.That(t, cfg.RampParameters, test.ShouldBeNil)
+
+		// Verify values from JSON were parsed correctly
+		test.That(t, cfg.MaxRPM, test.ShouldEqual, 500)
+		test.That(t, cfg.MaxAcceleration, test.ShouldEqual, 300)
+		// Note: CalFactor and HomeRPM defaults are set in makeMotor, not Validate
+	})
+
+	t.Run("partial ramp_parameters in JSON", func(t *testing.T) {
+		// JSON blob with only some ramp_parameters fields
+		jsonBlob := `{
+			"spi_bus": "main",
+			"chip_select": "40",
+			"index": 1,
+			"ticks_per_rotation": 200,
+			"max_rpm": 500,
+			"max_acceleration_rpm_per_sec": 300,
+			"ramp_parameters": {
+				"v_start": 5,
+				"a_max": 1000
+			}
+		}`
+
+		var cfg Config
+		err := json.Unmarshal([]byte(jsonBlob), &cfg)
+		test.That(t, err, test.ShouldBeNil)
+
+		// Validate the config
+		_, _, err = cfg.Validate("")
+		test.That(t, err, test.ShouldBeNil)
+
+		// Verify that RampParameters is not nil
+		test.That(t, cfg.RampParameters, test.ShouldNotBeNil)
+
+		// Verify that specified fields are set
+		test.That(t, cfg.RampParameters.VStart, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.VStart, test.ShouldEqual, 5)
+		test.That(t, cfg.RampParameters.AMax, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.AMax, test.ShouldEqual, 1000)
+
+		// Verify that unspecified fields remain nil (will be merged with defaults in makeMotor)
+		test.That(t, cfg.RampParameters.VStop, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.V1, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.A1, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.D1, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.VMax, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.DMax, test.ShouldBeNil)
+	})
+
+	t.Run("full ramp_parameters in JSON", func(t *testing.T) {
+		// JSON blob with all ramp_parameters fields
+		jsonBlob := `{
+			"spi_bus": "main",
+			"chip_select": "40",
+			"index": 1,
+			"ticks_per_rotation": 200,
+			"max_rpm": 500,
+			"max_acceleration_rpm_per_sec": 300,
+			"ramp_parameters": {
+				"v_start": 2,
+				"v_stop": 15,
+				"v1": 5000,
+				"a1": 800,
+				"d1": 900,
+				"v_max": 10000,
+				"a_max": 1200,
+				"d_max": 1300
+			}
+		}`
+
+		var cfg Config
+		err := json.Unmarshal([]byte(jsonBlob), &cfg)
+		test.That(t, err, test.ShouldBeNil)
+
+		// Validate the config
+		_, _, err = cfg.Validate("")
+		test.That(t, err, test.ShouldBeNil)
+
+		// Verify that RampParameters is not nil
+		test.That(t, cfg.RampParameters, test.ShouldNotBeNil)
+
+		// Verify that all fields are set correctly
+		test.That(t, cfg.RampParameters.VStart, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.VStart, test.ShouldEqual, 2)
+		test.That(t, cfg.RampParameters.VStop, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.VStop, test.ShouldEqual, 15)
+		test.That(t, cfg.RampParameters.V1, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.V1, test.ShouldEqual, 5000)
+		test.That(t, cfg.RampParameters.A1, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.A1, test.ShouldEqual, 800)
+		test.That(t, cfg.RampParameters.D1, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.D1, test.ShouldEqual, 900)
+		test.That(t, cfg.RampParameters.VMax, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.VMax, test.ShouldEqual, 10000)
+		test.That(t, cfg.RampParameters.AMax, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.AMax, test.ShouldEqual, 1200)
+		test.That(t, cfg.RampParameters.DMax, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.DMax, test.ShouldEqual, 1300)
 	})
 }
