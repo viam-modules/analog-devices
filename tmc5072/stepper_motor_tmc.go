@@ -246,7 +246,7 @@ func makeMotor(ctx context.Context, deps resource.Dependencies, c Config, name r
 	fClk := baseClk / c.CalFactor
 	rampParams := initRampParameters(c.MaxRPM, c.MaxAcceleration, fClk, stepsPerRev)
 	if c.RampParameters != nil {
-		rampParams = mergeRampParameters(rampParams, *c.RampParameters)
+		rampParams.mergeRampParameters(*c.RampParameters)
 	}
 
 	m := &Motor{
@@ -467,6 +467,11 @@ func (m *Motor) getvActual(ctx context.Context) (int32, error) {
 	if err != nil {
 		return 0, err
 	}
+	// velocity register is signed on 24 bits. So if bit 23 is negative we extend
+	// it to 32 bit.
+	if (rawVel>>23)&1 == 1 {
+		return rawVel - (1 << 24), nil
+	}
 	return rawVel, nil
 }
 
@@ -607,35 +612,33 @@ func initRampParameters(maxRPM, maxAcc, fClk float64, stepsPerRev int) rampParam
 	}
 }
 
-// mergeRampParameters merges two rampParameters structs, with override values taking precedence
-// for any non-nil fields.
-func mergeRampParameters(base, override rampParameters) rampParameters {
-	result := base
+// mergeRampParameters merges override values into the receiver, with override values taking precedence
+// for any non-nil fields. Updates the receiver in place.
+func (rp *rampParameters) mergeRampParameters(override rampParameters) {
 	if override.VStart != nil {
-		result.VStart = override.VStart
+		rp.VStart = override.VStart
 	}
 	if override.VStop != nil {
-		result.VStop = override.VStop
+		rp.VStop = override.VStop
 	}
 	if override.V1 != nil {
-		result.V1 = override.V1
+		rp.V1 = override.V1
 	}
 	if override.A1 != nil {
-		result.A1 = override.A1
+		rp.A1 = override.A1
 	}
 	if override.D1 != nil {
-		result.D1 = override.D1
+		rp.D1 = override.D1
 	}
 	if override.VMax != nil {
-		result.VMax = override.VMax
+		rp.VMax = override.VMax
 	}
 	if override.AMax != nil {
-		result.AMax = override.AMax
+		rp.AMax = override.AMax
 	}
 	if override.DMax != nil {
-		result.DMax = override.DMax
+		rp.DMax = override.DMax
 	}
-	return result
 }
 
 // parseRampParametersFromExtra extracts ramp_parameters from the extra map and converts it to rampParameters.
@@ -725,7 +728,7 @@ func (m *Motor) GoTo(ctx context.Context, rpm, positionRevolutions float64, extr
 			return errors.Wrapf(err, "error parsing ramp_parameters in GoTo from motor (%s)", m.motorName)
 		}
 		if extraRampParams != nil {
-			rampParams = mergeRampParameters(rampParams, *extraRampParams)
+			rampParams.mergeRampParameters(*extraRampParams)
 		}
 	}
 
@@ -751,10 +754,18 @@ func (m *Motor) GoTo(ctx context.Context, rpm, positionRevolutions float64, extr
 		return errors.Wrapf(err, "error in GoTo from motor (%s)", m.motorName)
 	}
 
+	// look for the position reached flag in  the stat register, looking for vzero could lead to
+	// premature stops (the velocity can remain null for a while depending on the configuration)
 	return m.opMgr.WaitForSuccess(
 		ctx,
 		time.Millisecond*10,
-		m.IsStopped,
+		func(ctx context.Context) (bool, error) {
+			stat, err := m.readReg(ctx, rampStat)
+			if err != nil {
+				return false, errors.Wrapf(err, "error in checking position reached (%s)", m.motorName)
+			}
+			return (stat>>9)&0x1 == 1, nil
+		},
 	)
 }
 
@@ -772,7 +783,7 @@ func (m *Motor) SetRPM(ctx context.Context, rpm float64, extra map[string]interf
 			return errors.Wrapf(err, "error parsing ramp_parameters in SetRPM from motor (%s)", m.motorName)
 		}
 		if extraRampParams != nil {
-			rampParams = mergeRampParameters(rampParams, *extraRampParams)
+			rampParams.mergeRampParameters(*extraRampParams)
 		}
 	}
 
@@ -957,7 +968,6 @@ func (m *Motor) ResetZeroPosition(ctx context.Context, offset float64, extra map
 	}
 	return multierr.Combine(
 		m.writeReg(ctx, rampMode, modeHold),
-		m.applyRampParameters(ctx, m.rampParams),
 		m.writeReg(ctx, xTarget, int32(-1*offset*float64(m.stepsPerRev))),
 		m.writeReg(ctx, xActual, int32(-1*offset*float64(m.stepsPerRev))),
 	)
