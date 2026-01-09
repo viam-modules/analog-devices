@@ -140,6 +140,7 @@ func TestRPMBounds(t *testing.T) {
 	test.That(t, getLastLogLine(), test.ShouldContainSubstring, "nearly 0")
 
 	// Check with position at 0.0 revolutions
+	//nolint:dupl
 	fakeSpiHandle.AddExpectedRx(
 		[][]byte{
 			{33, 0, 0, 0, 0},
@@ -325,6 +326,7 @@ func TestTMCStepperMotor(t *testing.T) {
 
 	t.Run("motor GoTo with positive rpm and positive revolutions", func(t *testing.T) {
 		// GoTo 3.2 at 50 rpm with default ramp parameters
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{160, 0, 0, 0, 0},
@@ -358,6 +360,7 @@ func TestTMCStepperMotor(t *testing.T) {
 		test.That(t, motorDep.GoTo(ctx, 50.0, 3.2, nil), test.ShouldBeNil)
 
 		// GoTo -3.2 at 50 rpm with custom ramp parameters
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{160, 0, 0, 0, 0},
@@ -403,6 +406,7 @@ func TestTMCStepperMotor(t *testing.T) {
 
 		test.That(t, motorDep.GoTo(ctx, 50.0, -3.2, rampParams), test.ShouldBeNil)
 		// GoTo 0 at 50 rpm with default ramp parameters
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{160, 0, 0, 0, 0},
@@ -438,6 +442,7 @@ func TestTMCStepperMotor(t *testing.T) {
 
 	t.Run("motor GoFor with positive rpm and positive revolutions", func(t *testing.T) {
 		// Check with position at 0.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
@@ -475,6 +480,7 @@ func TestTMCStepperMotor(t *testing.T) {
 		test.That(t, motorDep.GoFor(ctx, 50.0, 3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 4.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
@@ -512,6 +518,7 @@ func TestTMCStepperMotor(t *testing.T) {
 		test.That(t, motorDep.GoFor(ctx, 50.0, 3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 1.2 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
@@ -551,6 +558,7 @@ func TestTMCStepperMotor(t *testing.T) {
 
 	t.Run("motor GoFor with negative rpm and positive revolutions", func(t *testing.T) {
 		// Check with position at 0.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
@@ -588,6 +596,7 @@ func TestTMCStepperMotor(t *testing.T) {
 		test.That(t, motorDep.GoFor(ctx, -50.0, 3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 4.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
@@ -625,6 +634,7 @@ func TestTMCStepperMotor(t *testing.T) {
 		test.That(t, motorDep.GoFor(ctx, -50.0, 3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 1.2 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
@@ -664,6 +674,7 @@ func TestTMCStepperMotor(t *testing.T) {
 
 	t.Run("motor GoFor with positive rpm and negative revolutions", func(t *testing.T) {
 		// Check with position at 0.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
@@ -701,6 +712,7 @@ func TestTMCStepperMotor(t *testing.T) {
 		test.That(t, motorDep.GoFor(ctx, 50.0, -3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 4.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
@@ -738,6 +750,7 @@ func TestTMCStepperMotor(t *testing.T) {
 		test.That(t, motorDep.GoFor(ctx, 50.0, -3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 1.2 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
@@ -777,6 +790,7 @@ func TestTMCStepperMotor(t *testing.T) {
 
 	t.Run("motor GoFor with negative rpm and negative revolutions", func(t *testing.T) {
 		// Check with position at 0.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
@@ -814,6 +828,7 @@ func TestTMCStepperMotor(t *testing.T) {
 		test.That(t, motorDep.GoFor(ctx, -50.0, -3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 4.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
@@ -851,6 +866,7 @@ func TestTMCStepperMotor(t *testing.T) {
 		test.That(t, motorDep.GoFor(ctx, -50.0, -3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 1.2 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},

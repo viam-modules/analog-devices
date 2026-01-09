@@ -43,9 +43,9 @@ func (rp *rampParameters) validate() error {
 		return nil
 	}
 
-	checkRange := func(name string, val *uint32, min, max uint32) error {
-		if val != nil && (*val > max || *val < min) {
-			return errors.Errorf("%s must be between %d and %d, got %d", name, min, max, *val)
+	checkRange := func(name string, val *uint32, vMin, vMax uint32) error {
+		if val != nil && (*val > vMax || *val < vMin) {
+			return errors.Errorf("%s must be between %d and %d, got %d", name, vMin, vMax, *val)
 		}
 		return nil
 	}
@@ -569,11 +569,6 @@ func (m *Motor) rpmToV(rpm float64) int32 {
 	return int32(speed)
 }
 
-// Convert rpm/s to TMC5072 steps/taConst^2.
-func (m *Motor) rpmsToA(acc float64) int32 {
-	return rpmsToA(acc, m.fClk, m.stepsPerRev)
-}
-
 // rpmsToA converts rpm/s to TMC5072 steps/taConst^2.
 func rpmsToA(acc, fClk float64, stepsPerRev int) int32 {
 	// Time constant for accelerations in TMC5072
@@ -642,15 +637,15 @@ func (rp *rampParameters) mergeRampParameters(override rampParameters) {
 }
 
 // parseRampParametersFromExtra extracts ramp_parameters from the extra map and converts it to rampParameters.
-func parseRampParametersFromExtra(extra map[string]interface{}) (*rampParameters, error) {
+func parseRampParametersFromExtra(extra map[string]interface{}) *rampParameters {
 	rampParamsRaw, ok := extra["ramp_parameters"]
 	if !ok {
-		return nil, nil
+		return nil
 	}
 
 	rampParamsMap, ok := rampParamsRaw.(map[string]interface{})
 	if !ok {
-		return nil, errors.New("ramp_parameters must be a map[string]interface{}")
+		return nil
 	}
 
 	// Helper function to convert various numeric types to uint32
@@ -695,7 +690,7 @@ func parseRampParametersFromExtra(extra map[string]interface{}) (*rampParameters
 		params.DMax = &val
 	}
 
-	return params, nil
+	return params
 }
 
 // applyRampParameters writes ramp parameters to the motor registers.
@@ -723,11 +718,7 @@ func (m *Motor) GoTo(ctx context.Context, rpm, positionRevolutions float64, extr
 
 	// Merge with extra ramp_parameters if present
 	if extra != nil {
-		extraRampParams, err := parseRampParametersFromExtra(extra)
-		if err != nil {
-			return errors.Wrapf(err, "error parsing ramp_parameters in GoTo from motor (%s)", m.motorName)
-		}
-		if extraRampParams != nil {
+		if extraRampParams := parseRampParametersFromExtra(extra); extraRampParams != nil {
 			rampParams.mergeRampParameters(*extraRampParams)
 		}
 	}
@@ -778,11 +769,7 @@ func (m *Motor) SetRPM(ctx context.Context, rpm float64, extra map[string]interf
 
 	// Merge with extra ramp_parameters if present
 	if extra != nil {
-		extraRampParams, err := parseRampParametersFromExtra(extra)
-		if err != nil {
-			return errors.Wrapf(err, "error parsing ramp_parameters in SetRPM from motor (%s)", m.motorName)
-		}
-		if extraRampParams != nil {
+		if extraRampParams := parseRampParametersFromExtra(extra); extraRampParams != nil {
 			rampParams.mergeRampParameters(*extraRampParams)
 		}
 	}
