@@ -1090,6 +1090,34 @@ func TestTMCStepperMotor(t *testing.T) {
 		fakeSpiHandle.ExpectDone()
 		test.That(t, m.Close(context.Background()), test.ShouldBeNil)
 	})
+	t.Run("motor GoFor with bad rampParameters settings", func(t *testing.T) {
+		// GoFor 1 at 50 rpm with bad ramp parameters
+		//nolint:dupl
+		fakeSpiHandle.AddExpectedRx(
+			[][]byte{
+				{33, 0, 0, 0, 0},
+				{33, 0, 0, 0, 0},
+			},
+			[][]byte{
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+			},
+		)
+
+		rampParams := map[string]any{
+			"ramp_parameters": map[string]any{
+				"v_start": 0,
+				"v_stop":  10,
+				"v1":      2097152,
+				"a1":      3000,
+				"d1":      2500,
+				"a_max":   3500,
+				"d_max":   3600,
+			},
+		}
+
+		test.That(t, motorDep.GoFor(ctx, 50.0, 1, rampParams), test.ShouldNotBeNil)
+	})
 }
 
 func TestRampParametersConfig(t *testing.T) {
@@ -1112,8 +1140,15 @@ func TestRampParametersConfig(t *testing.T) {
 		_, _, err = cfg.Validate("")
 		test.That(t, err, test.ShouldBeNil)
 
-		// Verify that RampParameters is nil (not provided in JSON)
-		test.That(t, cfg.RampParameters, test.ShouldBeNil)
+		// Verify that all RampParameters fields are nil (not provided in JSON)
+		test.That(t, cfg.RampParameters.VStart, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.VStop, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.V1, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.A1, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.D1, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.VMax, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.AMax, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.DMax, test.ShouldBeNil)
 
 		// Verify values from JSON were parsed correctly
 		test.That(t, cfg.MaxRPM, test.ShouldEqual, 500)

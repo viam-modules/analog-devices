@@ -5,6 +5,7 @@ package tmc5072
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -50,6 +51,8 @@ func (rp *rampParameters) validate() error {
 		return nil
 	}
 
+	// Max values are coming from table 6.2.1 Ramp Generator Motion Control Register Set
+
 	if err := checkRange("v_start", rp.VStart, 0, uint32(math.Pow(2, 18))-1); err != nil {
 		return err
 	}
@@ -80,21 +83,21 @@ func (rp *rampParameters) validate() error {
 
 // Config describes the configuration of a motor.
 type Config struct {
-	Pins             PinConfig       `json:"pins,omitempty"`
-	BoardName        string          `json:"board,omitempty"` // used solely for the PinConfig
-	MaxRPM           float64         `json:"max_rpm,omitempty"`
-	MaxAcceleration  float64         `json:"max_acceleration_rpm_per_sec,omitempty"`
-	TicksPerRotation int             `json:"ticks_per_rotation"`
-	SPIBus           string          `json:"spi_bus"`
-	ChipSelect       string          `json:"chip_select"`
-	Index            int             `json:"index"`
-	SGThresh         int32           `json:"sg_thresh,omitempty"`
-	HomeRPM          float64         `json:"home_rpm,omitempty"`
-	CalFactor        float64         `json:"cal_factor,omitempty"`
-	RunCurrent       int32           `json:"run_current,omitempty"`  // 1-32 as a percentage of rsense voltage, 15 default
-	HoldCurrent      int32           `json:"hold_current,omitempty"` // 1-32 as a percentage of rsense voltage, 8 default
-	HoldDelay        int32           `json:"hold_delay,omitempty"`   // 0=instant powerdown, 1-15=delay * 2^18 clocks, 6 default
-	RampParameters   *rampParameters `json:"ramp_parameters,omitempty"`
+	Pins             PinConfig      `json:"pins,omitempty"`
+	BoardName        string         `json:"board,omitempty"` // used solely for the PinConfig
+	MaxRPM           float64        `json:"max_rpm,omitempty"`
+	MaxAcceleration  float64        `json:"max_acceleration_rpm_per_sec,omitempty"`
+	TicksPerRotation int            `json:"ticks_per_rotation"`
+	SPIBus           string         `json:"spi_bus"`
+	ChipSelect       string         `json:"chip_select"`
+	Index            int            `json:"index"`
+	SGThresh         int32          `json:"sg_thresh,omitempty"`
+	HomeRPM          float64        `json:"home_rpm,omitempty"`
+	CalFactor        float64        `json:"cal_factor,omitempty"`
+	RunCurrent       int32          `json:"run_current,omitempty"`  // 1-32 as a percentage of rsense voltage, 15 default
+	HoldCurrent      int32          `json:"hold_current,omitempty"` // 1-32 as a percentage of rsense voltage, 8 default
+	HoldDelay        int32          `json:"hold_delay,omitempty"`   // 0=instant powerdown, 1-15=delay * 2^18 clocks, 6 default
+	RampParameters   rampParameters `json:"ramp_parameters,omitempty"`
 }
 
 // Model for viam supported analog-devices tmc5072 motor.
@@ -245,9 +248,8 @@ func makeMotor(ctx context.Context, deps resource.Dependencies, c Config, name r
 	stepsPerRev := c.TicksPerRotation * uSteps
 	fClk := baseClk / c.CalFactor
 	rampParams := initRampParameters(c.MaxRPM, c.MaxAcceleration, fClk, stepsPerRev)
-	if c.RampParameters != nil {
-		rampParams.mergeRampParameters(*c.RampParameters)
-	}
+	// in config all ramp parameters are optional, we only override the fields that have been set in config
+	rampParams.mergeRampParameters(c.RampParameters)
 
 	m := &Motor{
 		Named:       name.AsNamed(),
@@ -637,15 +639,10 @@ func (rp *rampParameters) mergeRampParameters(override rampParameters) {
 }
 
 // parseRampParametersFromExtra extracts ramp_parameters from the extra map and converts it to rampParameters.
-func parseRampParametersFromExtra(extra map[string]interface{}) *rampParameters {
-	rampParamsRaw, ok := extra["ramp_parameters"]
-	if !ok {
-		return nil
-	}
-
+func parseRampParametersFromExtra(rampParamsRaw interface{}) (*rampParameters, error) {
 	rampParamsMap, ok := rampParamsRaw.(map[string]interface{})
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("ramp_parameters must be a map[string]interface{} got %T", rampParamsMap)
 	}
 
 	// Helper function to convert various numeric types to uint32
@@ -690,11 +687,41 @@ func parseRampParametersFromExtra(extra map[string]interface{}) *rampParameters 
 		params.DMax = &val
 	}
 
-	return params
+	if err := params.validate(); err != nil {
+		return nil, errors.Wrap(err, "couldn't validate passed ramp parameters")
+	}
+
+	return params, nil
 }
 
 // applyRampParameters writes ramp parameters to the motor registers.
 func (m *Motor) applyRampParameters(ctx context.Context, params rampParameters) error {
+	// Check that all pointer fields are set
+	if params.VStart == nil {
+		return errors.New("ramp parameter field 'v_start' is not set")
+	}
+	if params.VStop == nil {
+		return errors.New("ramp parameter field 'v_stop' is not set")
+	}
+	if params.V1 == nil {
+		return errors.New("ramp parameter field 'v1' is not set")
+	}
+	if params.A1 == nil {
+		return errors.New("ramp parameter field 'a1' is not set")
+	}
+	if params.D1 == nil {
+		return errors.New("ramp parameter field 'd1' is not set")
+	}
+	if params.VMax == nil {
+		return errors.New("ramp parameter field 'v_max' is not set")
+	}
+	if params.AMax == nil {
+		return errors.New("ramp parameter field 'a_max' is not set")
+	}
+	if params.DMax == nil {
+		return errors.New("ramp parameter field 'd_max' is not set")
+	}
+
 	return multierr.Combine(
 		m.writeReg(ctx, a1, int32(*params.A1)),
 		m.writeReg(ctx, aMax, int32(*params.AMax)),
@@ -718,7 +745,11 @@ func (m *Motor) GoTo(ctx context.Context, rpm, positionRevolutions float64, extr
 
 	// Merge with extra ramp_parameters if present
 	if extra != nil {
-		if extraRampParams := parseRampParametersFromExtra(extra); extraRampParams != nil {
+		if rampParamsRaw, ok := extra["ramp_parameters"]; ok {
+			extraRampParams, err := parseRampParametersFromExtra(rampParamsRaw)
+			if err != nil {
+				return err
+			}
 			rampParams.mergeRampParameters(*extraRampParams)
 		}
 	}
@@ -769,7 +800,11 @@ func (m *Motor) SetRPM(ctx context.Context, rpm float64, extra map[string]interf
 
 	// Merge with extra ramp_parameters if present
 	if extra != nil {
-		if extraRampParams := parseRampParametersFromExtra(extra); extraRampParams != nil {
+		if rampParamsRaw, ok := extra["ramp_parameters"]; ok {
+			extraRampParams, err := parseRampParametersFromExtra(rampParamsRaw)
+			if err != nil {
+				return err
+			}
 			rampParams.mergeRampParameters(*extraRampParams)
 		}
 	}
