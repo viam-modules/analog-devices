@@ -5,6 +5,7 @@ package tmc5072
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -139,11 +140,19 @@ func TestRPMBounds(t *testing.T) {
 	test.That(t, getLastLogLine(), test.ShouldContainSubstring, "nearly 0")
 
 	// Check with position at 0.0 revolutions
+	//nolint:dupl
 	fakeSpiHandle.AddExpectedRx(
 		[][]byte{
 			{33, 0, 0, 0, 0},
 			{33, 0, 0, 0, 0},
 			{160, 0, 0, 0, 0},
+			{164, 0, 0, 21, 8},   // a1
+			{166, 0, 0, 21, 8},   // aMax
+			{170, 0, 0, 21, 8},   // d1
+			{168, 0, 0, 21, 8},   // dMax
+			{163, 0, 0, 0, 1},    // vStart
+			{171, 0, 0, 0, 10},   // vStop
+			{165, 0, 2, 17, 149}, // v1
 			{167, 0, 8, 70, 85},
 			{173, 0, 5, 40, 0},
 			{53, 0, 0, 0, 0},
@@ -155,8 +164,15 @@ func TestRPMBounds(t *testing.T) {
 			{0, 0, 0, 0, 0},
 			{0, 0, 0, 0, 0},
 			{0, 0, 0, 0, 0},
-			{0, 0, 0, 4, 0},
-			{0, 0, 0, 4, 0},
+			{0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0},
+			{0, 0, 0, 2, 0},
 		},
 	)
 	test.That(t, motorDep.GoFor(ctx, 500, 6.6, nil), test.ShouldBeNil)
@@ -232,15 +248,53 @@ func TestTMCStepperMotor(t *testing.T) {
 	t.Run("motor SetRPM testing", func(t *testing.T) {
 		// Test Go forward at half speed
 		fakeSpiHandle.AddExpectedTx([][]byte{
-			{160, 0, 0, 0, 1},
-			{167, 0, 4, 35, 42},
+			{160, 0, 0, 0, 1},    // rampMode
+			{164, 0, 0, 21, 8},   // a1
+			{166, 0, 0, 21, 8},   // aMax
+			{170, 0, 0, 21, 8},   // d1
+			{168, 0, 0, 21, 8},   // dMax
+			{163, 0, 0, 0, 1},    // vStart
+			{171, 0, 0, 0, 10},   // vStop
+			{165, 0, 2, 17, 149}, // v1
+			{167, 0, 4, 35, 42},  // vMax
 		})
 		test.That(t, motorDep.SetRPM(ctx, 250, nil), test.ShouldBeNil)
 
+		fakeSpiHandle.AddExpectedTx([][]byte{
+			{160, 0, 0, 0, 1},    // rampMode
+			{164, 0, 0, 11, 184}, // a1
+			{166, 0, 0, 13, 172}, // aMax
+			{170, 0, 0, 9, 196},  // d1
+			{168, 0, 0, 14, 16},  // dMax
+			{163, 0, 0, 0, 0},    // vStart
+			{171, 0, 0, 0, 10},   // vStop
+			{165, 0, 0, 4, 232},  // v1
+			{167, 0, 4, 35, 42},  // vMax
+		})
+		rampParams := map[string]any{
+			"ramp_parameters": map[string]any{
+				"v_start": 0,
+				"v_stop":  10,
+				"v1":      1256,
+				"a1":      3000,
+				"d1":      2500,
+				"a_max":   3500,
+				"d_max":   3600,
+			},
+		}
+		test.That(t, motorDep.SetRPM(ctx, 250, rampParams), test.ShouldBeNil)
+
 		// Test Go backward at quarter speed
 		fakeSpiHandle.AddExpectedTx([][]byte{
-			{160, 0, 0, 0, 2},
-			{167, 0, 2, 17, 149},
+			{160, 0, 0, 0, 2},    // rampMode
+			{164, 0, 0, 21, 8},   // a1
+			{166, 0, 0, 21, 8},   // aMax
+			{170, 0, 0, 21, 8},   // d1
+			{168, 0, 0, 21, 8},   // dMax
+			{163, 0, 0, 0, 1},    // vStart
+			{171, 0, 0, 0, 10},   // vStop
+			{165, 0, 2, 17, 149}, // v1
+			{167, 0, 2, 17, 149}, // vMax
 		})
 		test.That(t, motorDep.SetRPM(ctx, -125, nil), test.ShouldBeNil)
 	})
@@ -270,13 +324,19 @@ func TestTMCStepperMotor(t *testing.T) {
 		test.That(t, err, test.ShouldBeNil)
 	})
 
-	t.Run("motor GoFor with positive rpm and positive revolutions", func(t *testing.T) {
-		// Check with position at 0.0 revolutions
+	t.Run("motor GoTo with positive rpm and positive revolutions", func(t *testing.T) {
+		// GoTo 3.2 at 50 rpm with default ramp parameters
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
-				{33, 0, 0, 0, 0},
-				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},   // a1
+				{166, 0, 0, 21, 8},   // aMax
+				{170, 0, 0, 21, 8},   // d1
+				{168, 0, 0, 21, 8},   // dMax
+				{163, 0, 0, 0, 1},    // vStart
+				{171, 0, 0, 0, 10},   // vStop
+				{165, 0, 2, 17, 149}, // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 2, 128, 0},
 				{53, 0, 0, 0, 0},
@@ -288,18 +348,151 @@ func TestTMCStepperMotor(t *testing.T) {
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
-				{0, 0, 0, 4, 0},
-				{0, 0, 0, 4, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
 			},
 		)
-		test.That(t, motorDep.GoFor(ctx, 50.0, 3.2, nil), test.ShouldBeNil)
+		test.That(t, motorDep.GoTo(ctx, 50.0, 3.2, nil), test.ShouldBeNil)
 
-		// Check with position at 4.0 revolutions
+		// GoTo -3.2 at 50 rpm with custom ramp parameters
+		//nolint:dupl
+		fakeSpiHandle.AddExpectedRx(
+			[][]byte{
+				{160, 0, 0, 0, 0},
+				{164, 0, 0, 11, 184},  // a1
+				{166, 0, 0, 13, 172},  // aMax
+				{170, 0, 0, 9, 196},   // d1
+				{168, 0, 0, 14, 16},   // dMax
+				{163, 0, 0, 0, 0},     // vStart
+				{171, 0, 0, 0, 10},    // vStop
+				{165, 0, 0, 4, 232},   // v1
+				{167, 0, 0, 211, 213}, // vMax
+				{173, 255, 253, 128, 0},
+				{53, 0, 0, 0, 0},
+				{53, 0, 0, 0, 0},
+			},
+			[][]byte{
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
+			},
+		)
+
+		rampParams := map[string]any{
+			"ramp_parameters": map[string]any{
+				"v_start": 0,
+				"v_stop":  10,
+				"v1":      1256,
+				"a1":      3000,
+				"d1":      2500,
+				"a_max":   3500,
+				"d_max":   3600,
+			},
+		}
+
+		test.That(t, motorDep.GoTo(ctx, 50.0, -3.2, rampParams), test.ShouldBeNil)
+		// GoTo 0 at 50 rpm with default ramp parameters
+		//nolint:dupl
+		fakeSpiHandle.AddExpectedRx(
+			[][]byte{
+				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},   // a1
+				{166, 0, 0, 21, 8},   // aMax
+				{170, 0, 0, 21, 8},   // d1
+				{168, 0, 0, 21, 8},   // dMax
+				{163, 0, 0, 0, 1},    // vStart
+				{171, 0, 0, 0, 10},   // vStop
+				{165, 0, 2, 17, 149}, // v1
+				{167, 0, 0, 211, 213},
+				{173, 0, 0, 0, 0},
+				{53, 0, 0, 0, 0},
+				{53, 0, 0, 0, 0},
+			},
+			[][]byte{
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
+			},
+		)
+		test.That(t, motorDep.GoTo(ctx, 50.0, 0, nil), test.ShouldBeNil)
+	})
+
+	t.Run("motor GoFor with positive rpm and positive revolutions", func(t *testing.T) {
+		// Check with position at 0.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},   // a1
+				{166, 0, 0, 21, 8},   // aMax
+				{170, 0, 0, 21, 8},   // d1
+				{168, 0, 0, 21, 8},   // dMax
+				{163, 0, 0, 0, 1},    // vStart
+				{171, 0, 0, 0, 10},   // vStop
+				{165, 0, 2, 17, 149}, // v1
+				{167, 0, 0, 211, 213},
+				{173, 0, 2, 128, 0},
+				{53, 0, 0, 0, 0},
+				{53, 0, 0, 0, 0},
+			},
+			[][]byte{
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
+			},
+		)
+		test.That(t, motorDep.GoFor(ctx, 50.0, 3.2, nil), test.ShouldBeNil)
+
+		// Check with position at 4.0 revolutions
+		//nolint:dupl
+		fakeSpiHandle.AddExpectedRx(
+			[][]byte{
+				{33, 0, 0, 0, 0},
+				{33, 0, 0, 0, 0},
+				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},   // a1
+				{166, 0, 0, 21, 8},   // aMax
+				{170, 0, 0, 21, 8},   // d1
+				{168, 0, 0, 21, 8},   // dMax
+				{163, 0, 0, 0, 1},    // vStart
+				{171, 0, 0, 0, 10},   // vStop
+				{165, 0, 2, 17, 149}, // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 5, 160, 0},
 				{53, 0, 0, 0, 0},
@@ -311,18 +504,33 @@ func TestTMCStepperMotor(t *testing.T) {
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
-				{0, 0, 0, 4, 0},
-				{0, 0, 0, 4, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
 			},
 		)
 		test.That(t, motorDep.GoFor(ctx, 50.0, 3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 1.2 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},   // a1
+				{166, 0, 0, 21, 8},   // aMax
+				{170, 0, 0, 21, 8},   // d1
+				{168, 0, 0, 21, 8},   // dMax
+				{163, 0, 0, 0, 1},    // vStart
+				{171, 0, 0, 0, 10},   // vStop
+				{165, 0, 2, 17, 149}, // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 6, 24, 0},
 				{53, 0, 0, 0, 0},
@@ -334,8 +542,15 @@ func TestTMCStepperMotor(t *testing.T) {
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
-				{0, 0, 0, 4, 0},
-				{0, 0, 0, 4, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
 			},
 		)
 		test.That(t, motorDep.GoFor(ctx, 50.0, 6.6, nil), test.ShouldBeNil)
@@ -343,11 +558,19 @@ func TestTMCStepperMotor(t *testing.T) {
 
 	t.Run("motor GoFor with negative rpm and positive revolutions", func(t *testing.T) {
 		// Check with position at 0.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},   // a1
+				{166, 0, 0, 21, 8},   // aMax
+				{170, 0, 0, 21, 8},   // d1
+				{168, 0, 0, 21, 8},   // dMax
+				{163, 0, 0, 0, 1},    // vStart
+				{171, 0, 0, 0, 10},   // vStop
+				{165, 0, 2, 17, 149}, // v1
 				{167, 0, 0, 211, 213},
 				{173, 255, 253, 128, 0},
 				{53, 0, 0, 0, 0},
@@ -359,18 +582,33 @@ func TestTMCStepperMotor(t *testing.T) {
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
-				{0, 0, 0, 4, 0},
-				{0, 0, 0, 4, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
 			},
 		)
 		test.That(t, motorDep.GoFor(ctx, -50.0, 3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 4.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},   // a1
+				{166, 0, 0, 21, 8},   // aMax
+				{170, 0, 0, 21, 8},   // d1
+				{168, 0, 0, 21, 8},   // dMax
+				{163, 0, 0, 0, 1},    // vStart
+				{171, 0, 0, 0, 10},   // vStop
+				{165, 0, 2, 17, 149}, // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 0, 159, 255},
 				{53, 0, 0, 0, 0},
@@ -382,18 +620,33 @@ func TestTMCStepperMotor(t *testing.T) {
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
-				{0, 0, 0, 4, 0},
-				{0, 0, 0, 4, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
 			},
 		)
 		test.That(t, motorDep.GoFor(ctx, -50.0, 3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 1.2 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},   // a1
+				{166, 0, 0, 21, 8},   // aMax
+				{170, 0, 0, 21, 8},   // d1
+				{168, 0, 0, 21, 8},   // dMax
+				{163, 0, 0, 0, 1},    // vStart
+				{171, 0, 0, 0, 10},   // vStop
+				{165, 0, 2, 17, 149}, // v1
 				{167, 0, 0, 211, 213},
 				{173, 255, 251, 200, 0},
 				{53, 0, 0, 0, 0},
@@ -405,8 +658,15 @@ func TestTMCStepperMotor(t *testing.T) {
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
-				{0, 0, 0, 4, 0},
-				{0, 0, 0, 4, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
 			},
 		)
 		test.That(t, motorDep.GoFor(ctx, -50.0, 6.6, nil), test.ShouldBeNil)
@@ -414,11 +674,19 @@ func TestTMCStepperMotor(t *testing.T) {
 
 	t.Run("motor GoFor with positive rpm and negative revolutions", func(t *testing.T) {
 		// Check with position at 0.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},   // a1
+				{166, 0, 0, 21, 8},   // aMax
+				{170, 0, 0, 21, 8},   // d1
+				{168, 0, 0, 21, 8},   // dMax
+				{163, 0, 0, 0, 1},    // vStart
+				{171, 0, 0, 0, 10},   // vStop
+				{165, 0, 2, 17, 149}, // v1
 				{167, 0, 0, 211, 213},
 				{173, 255, 253, 128, 0},
 				{53, 0, 0, 0, 0},
@@ -430,18 +698,33 @@ func TestTMCStepperMotor(t *testing.T) {
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
-				{0, 0, 0, 4, 0},
-				{0, 0, 0, 4, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
 			},
 		)
 		test.That(t, motorDep.GoFor(ctx, 50.0, -3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 4.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},   // a1
+				{166, 0, 0, 21, 8},   // aMax
+				{170, 0, 0, 21, 8},   // d1
+				{168, 0, 0, 21, 8},   // dMax
+				{163, 0, 0, 0, 1},    // vStart
+				{171, 0, 0, 0, 10},   // vStop
+				{165, 0, 2, 17, 149}, // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 0, 159, 255},
 				{53, 0, 0, 0, 0},
@@ -453,18 +736,33 @@ func TestTMCStepperMotor(t *testing.T) {
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
-				{0, 0, 0, 4, 0},
-				{0, 0, 0, 4, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
 			},
 		)
 		test.That(t, motorDep.GoFor(ctx, 50.0, -3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 1.2 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},   // a1
+				{166, 0, 0, 21, 8},   // aMax
+				{170, 0, 0, 21, 8},   // d1
+				{168, 0, 0, 21, 8},   // dMax
+				{163, 0, 0, 0, 1},    // vStart
+				{171, 0, 0, 0, 10},   // vStop
+				{165, 0, 2, 17, 149}, // v1
 				{167, 0, 0, 211, 213},
 				{173, 255, 251, 200, 0},
 				{53, 0, 0, 0, 0},
@@ -476,8 +774,15 @@ func TestTMCStepperMotor(t *testing.T) {
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
-				{0, 0, 0, 4, 0},
-				{0, 0, 0, 4, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
 			},
 		)
 		test.That(t, motorDep.GoFor(ctx, 50.0, -6.6, nil), test.ShouldBeNil)
@@ -485,11 +790,19 @@ func TestTMCStepperMotor(t *testing.T) {
 
 	t.Run("motor GoFor with negative rpm and negative revolutions", func(t *testing.T) {
 		// Check with position at 0.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},   // a1
+				{166, 0, 0, 21, 8},   // aMax
+				{170, 0, 0, 21, 8},   // d1
+				{168, 0, 0, 21, 8},   // dMax
+				{163, 0, 0, 0, 1},    // vStart
+				{171, 0, 0, 0, 10},   // vStop
+				{165, 0, 2, 17, 149}, // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 2, 128, 0},
 				{53, 0, 0, 0, 0},
@@ -501,18 +814,33 @@ func TestTMCStepperMotor(t *testing.T) {
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
-				{0, 0, 0, 4, 0},
-				{0, 0, 0, 4, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
 			},
 		)
 		test.That(t, motorDep.GoFor(ctx, -50.0, -3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 4.0 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},   // a1
+				{166, 0, 0, 21, 8},   // aMax
+				{170, 0, 0, 21, 8},   // d1
+				{168, 0, 0, 21, 8},   // dMax
+				{163, 0, 0, 0, 1},    // vStart
+				{171, 0, 0, 0, 10},   // vStop
+				{165, 0, 2, 17, 149}, // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 5, 160, 0},
 				{53, 0, 0, 0, 0},
@@ -524,18 +852,33 @@ func TestTMCStepperMotor(t *testing.T) {
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
-				{0, 0, 0, 4, 0},
-				{0, 0, 0, 4, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
 			},
 		)
 		test.That(t, motorDep.GoFor(ctx, -50.0, -3.2, nil), test.ShouldBeNil)
 
 		// Check with position at 1.2 revolutions
+		//nolint:dupl
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
 				{33, 0, 0, 0, 0},
 				{160, 0, 0, 0, 0},
+				{164, 0, 0, 21, 8},   // a1
+				{166, 0, 0, 21, 8},   // aMax
+				{170, 0, 0, 21, 8},   // d1
+				{168, 0, 0, 21, 8},   // dMax
+				{163, 0, 0, 0, 1},    // vStart
+				{171, 0, 0, 0, 10},   // vStop
+				{165, 0, 2, 17, 149}, // v1
 				{167, 0, 0, 211, 213},
 				{173, 0, 6, 24, 0},
 				{53, 0, 0, 0, 0},
@@ -547,8 +890,15 @@ func TestTMCStepperMotor(t *testing.T) {
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
-				{0, 0, 0, 4, 0},
-				{0, 0, 0, 4, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 2, 0},
 			},
 		)
 		test.That(t, motorDep.GoFor(ctx, -50.0, -6.6, nil), test.ShouldBeNil)
@@ -739,5 +1089,162 @@ func TestTMCStepperMotor(t *testing.T) {
 		test.That(t, err, test.ShouldBeNil)
 		fakeSpiHandle.ExpectDone()
 		test.That(t, m.Close(context.Background()), test.ShouldBeNil)
+	})
+	t.Run("motor GoFor with bad rampParameters settings", func(t *testing.T) {
+		// GoFor 1 at 50 rpm with bad ramp parameters
+		//nolint:dupl
+		fakeSpiHandle.AddExpectedRx(
+			[][]byte{
+				{33, 0, 0, 0, 0},
+				{33, 0, 0, 0, 0},
+			},
+			[][]byte{
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+			},
+		)
+
+		rampParams := map[string]any{
+			"ramp_parameters": map[string]any{
+				"v_start": 0,
+				"v_stop":  10,
+				"v1":      2097152,
+				"a1":      3000,
+				"d1":      2500,
+				"a_max":   3500,
+				"d_max":   3600,
+			},
+		}
+
+		test.That(t, motorDep.GoFor(ctx, 50.0, 1, rampParams), test.ShouldNotBeNil)
+	})
+}
+
+func TestRampParametersConfig(t *testing.T) {
+	t.Run("default config with no ramp_parameters in JSON", func(t *testing.T) {
+		// JSON blob with no ramp_parameters field
+		jsonBlob := `{
+			"spi_bus": "main",
+			"chip_select": "40",
+			"index": 1,
+			"ticks_per_rotation": 200,
+			"max_rpm": 500,
+			"max_acceleration_rpm_per_sec": 300
+		}`
+
+		var cfg Config
+		err := json.Unmarshal([]byte(jsonBlob), &cfg)
+		test.That(t, err, test.ShouldBeNil)
+
+		// Validate the config
+		_, _, err = cfg.Validate("")
+		test.That(t, err, test.ShouldBeNil)
+
+		// Verify that all RampParameters fields are nil (not provided in JSON)
+		test.That(t, cfg.RampParameters.VStart, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.VStop, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.V1, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.A1, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.D1, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.VMax, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.AMax, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.DMax, test.ShouldBeNil)
+
+		// Verify values from JSON were parsed correctly
+		test.That(t, cfg.MaxRPM, test.ShouldEqual, 500)
+		test.That(t, cfg.MaxAcceleration, test.ShouldEqual, 300)
+		// Note: CalFactor and HomeRPM defaults are set in makeMotor, not Validate
+	})
+
+	t.Run("partial ramp_parameters in JSON", func(t *testing.T) {
+		// JSON blob with only some ramp_parameters fields
+		jsonBlob := `{
+			"spi_bus": "main",
+			"chip_select": "40",
+			"index": 1,
+			"ticks_per_rotation": 200,
+			"max_rpm": 500,
+			"max_acceleration_rpm_per_sec": 300,
+			"ramp_parameters": {
+				"v_start": 5,
+				"a_max": 1000
+			}
+		}`
+
+		var cfg Config
+		err := json.Unmarshal([]byte(jsonBlob), &cfg)
+		test.That(t, err, test.ShouldBeNil)
+
+		// Validate the config
+		_, _, err = cfg.Validate("")
+		test.That(t, err, test.ShouldBeNil)
+
+		// Verify that RampParameters is not nil
+		test.That(t, cfg.RampParameters, test.ShouldNotBeNil)
+
+		// Verify that specified fields are set
+		test.That(t, cfg.RampParameters.VStart, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.VStart, test.ShouldEqual, 5)
+		test.That(t, cfg.RampParameters.AMax, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.AMax, test.ShouldEqual, 1000)
+
+		// Verify that unspecified fields remain nil (will be merged with defaults in makeMotor)
+		test.That(t, cfg.RampParameters.VStop, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.V1, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.A1, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.D1, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.VMax, test.ShouldBeNil)
+		test.That(t, cfg.RampParameters.DMax, test.ShouldBeNil)
+	})
+
+	t.Run("full ramp_parameters in JSON", func(t *testing.T) {
+		// JSON blob with all ramp_parameters fields
+		jsonBlob := `{
+			"spi_bus": "main",
+			"chip_select": "40",
+			"index": 1,
+			"ticks_per_rotation": 200,
+			"max_rpm": 500,
+			"max_acceleration_rpm_per_sec": 300,
+			"ramp_parameters": {
+				"v_start": 2,
+				"v_stop": 15,
+				"v1": 5000,
+				"a1": 800,
+				"d1": 900,
+				"v_max": 10000,
+				"a_max": 1200,
+				"d_max": 1300
+			}
+		}`
+
+		var cfg Config
+		err := json.Unmarshal([]byte(jsonBlob), &cfg)
+		test.That(t, err, test.ShouldBeNil)
+
+		// Validate the config
+		_, _, err = cfg.Validate("")
+		test.That(t, err, test.ShouldBeNil)
+
+		// Verify that RampParameters is not nil
+		test.That(t, cfg.RampParameters, test.ShouldNotBeNil)
+
+		// Verify that all fields are set correctly
+		test.That(t, cfg.RampParameters.VStart, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.VStart, test.ShouldEqual, 2)
+		test.That(t, cfg.RampParameters.VStop, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.VStop, test.ShouldEqual, 15)
+		test.That(t, cfg.RampParameters.V1, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.V1, test.ShouldEqual, 5000)
+		test.That(t, cfg.RampParameters.A1, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.A1, test.ShouldEqual, 800)
+		test.That(t, cfg.RampParameters.D1, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.D1, test.ShouldEqual, 900)
+		test.That(t, cfg.RampParameters.VMax, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.VMax, test.ShouldEqual, 10000)
+		test.That(t, cfg.RampParameters.AMax, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.AMax, test.ShouldEqual, 1200)
+		test.That(t, cfg.RampParameters.DMax, test.ShouldNotBeNil)
+		test.That(t, *cfg.RampParameters.DMax, test.ShouldEqual, 1300)
 	})
 }

@@ -5,6 +5,7 @@ package tmc5072
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -25,22 +26,78 @@ type PinConfig struct {
 	EnablePinLow string `json:"en_low,omitempty"`
 }
 
+// rampParameters defines the velocity ramping configuration for the motor.
+type rampParameters struct {
+	VStart *uint32 `json:"v_start,omitempty"`
+	VStop  *uint32 `json:"v_stop,omitempty"`
+	V1     *uint32 `json:"v1,omitempty"`
+	A1     *uint32 `json:"a1,omitempty"`
+	D1     *uint32 `json:"d1,omitempty"`
+	VMax   *uint32 `json:"v_max,omitempty"`
+	AMax   *uint32 `json:"a_max,omitempty"`
+	DMax   *uint32 `json:"d_max,omitempty"`
+}
+
+// validate checks that all non-nil ramp parameters are within the valid range [0, 2^23].
+func (rp *rampParameters) validate() error {
+	if rp == nil {
+		return nil
+	}
+
+	checkRange := func(name string, val *uint32, vMin, vMax uint32) error {
+		if val != nil && (*val > vMax || *val < vMin) {
+			return errors.Errorf("%s must be between %d and %d, got %d", name, vMin, vMax, *val)
+		}
+		return nil
+	}
+
+	// Max values are coming from table 6.2.1 Ramp Generator Motion Control Register Set
+
+	if err := checkRange("v_start", rp.VStart, 0, uint32(math.Pow(2, 18))-1); err != nil {
+		return err
+	}
+	if err := checkRange("v_stop", rp.VStop, 1, uint32(math.Pow(2, 18))-1); err != nil {
+		return err
+	}
+	if err := checkRange("v1", rp.V1, 0, uint32(math.Pow(2, 20))-1); err != nil {
+		return err
+	}
+	if err := checkRange("a1", rp.A1, 0, uint32(math.Pow(2, 16))-1); err != nil {
+		return err
+	}
+	if err := checkRange("d1", rp.D1, 1, uint32(math.Pow(2, 16))-1); err != nil {
+		return err
+	}
+	if err := checkRange("v_max", rp.VMax, 0, uint32(math.Pow(2, 23))-512); err != nil {
+		return err
+	}
+	if err := checkRange("a_max", rp.AMax, 0, uint32(math.Pow(2, 16))-1); err != nil {
+		return err
+	}
+	if err := checkRange("d_max", rp.DMax, 0, uint32(math.Pow(2, 16))-1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Config describes the configuration of a motor.
 type Config struct {
-	Pins             PinConfig `json:"pins,omitempty"`
-	BoardName        string    `json:"board,omitempty"` // used solely for the PinConfig
-	MaxRPM           float64   `json:"max_rpm,omitempty"`
-	MaxAcceleration  float64   `json:"max_acceleration_rpm_per_sec,omitempty"`
-	TicksPerRotation int       `json:"ticks_per_rotation"`
-	SPIBus           string    `json:"spi_bus"`
-	ChipSelect       string    `json:"chip_select"`
-	Index            int       `json:"index"`
-	SGThresh         int32     `json:"sg_thresh,omitempty"`
-	HomeRPM          float64   `json:"home_rpm,omitempty"`
-	CalFactor        float64   `json:"cal_factor,omitempty"`
-	RunCurrent       int32     `json:"run_current,omitempty"`  // 1-32 as a percentage of rsense voltage, 15 default
-	HoldCurrent      int32     `json:"hold_current,omitempty"` // 1-32 as a percentage of rsense voltage, 8 default
-	HoldDelay        int32     `json:"hold_delay,omitempty"`   // 0=instant powerdown, 1-15=delay * 2^18 clocks, 6 default
+	Pins             PinConfig      `json:"pins,omitempty"`
+	BoardName        string         `json:"board,omitempty"` // used solely for the PinConfig
+	MaxRPM           float64        `json:"max_rpm,omitempty"`
+	MaxAcceleration  float64        `json:"max_acceleration_rpm_per_sec,omitempty"`
+	TicksPerRotation int            `json:"ticks_per_rotation"`
+	SPIBus           string         `json:"spi_bus"`
+	ChipSelect       string         `json:"chip_select"`
+	Index            int            `json:"index"`
+	SGThresh         int32          `json:"sg_thresh,omitempty"`
+	HomeRPM          float64        `json:"home_rpm,omitempty"`
+	CalFactor        float64        `json:"cal_factor,omitempty"`
+	RunCurrent       int32          `json:"run_current,omitempty"`  // 1-32 as a percentage of rsense voltage, 15 default
+	HoldCurrent      int32          `json:"hold_current,omitempty"` // 1-32 as a percentage of rsense voltage, 8 default
+	HoldDelay        int32          `json:"hold_delay,omitempty"`   // 0=instant powerdown, 1-15=delay * 2^18 clocks, 6 default
+	RampParameters   rampParameters `json:"ramp_parameters,omitempty"`
 }
 
 // Model for viam supported analog-devices tmc5072 motor.
@@ -70,6 +127,9 @@ func (config *Config) Validate(path string) ([]string, []string, error) {
 	if config.TicksPerRotation <= 0 {
 		return nil, nil, resource.NewConfigValidationFieldRequiredError(path, "ticks_per_rotation")
 	}
+	if err := config.RampParameters.validate(); err != nil {
+		return nil, nil, err
+	}
 	return deps, nil, nil
 }
 
@@ -97,6 +157,7 @@ type Motor struct {
 	opMgr       *operation.SingleOperationManager
 	powerPct    float64
 	motorName   string
+	rampParams  rampParameters
 }
 
 // TMC5072 Values.
@@ -121,9 +182,9 @@ const (
 	drvStatus = 0x6F
 
 	// add 0x20 for motor 2.
-	rampMode = 0x20
-	xActual  = 0x21
-	// vActual    = 0x22.
+	rampMode   = 0x20
+	xActual    = 0x21
+	vActual    = 0x22
 	vStart     = 0x23
 	a1         = 0x24
 	v1         = 0x25
@@ -184,23 +245,27 @@ func makeMotor(ctx context.Context, deps resource.Dependencies, c Config, name r
 		c.HomeRPM = c.MaxRPM / 4
 	}
 	c.HomeRPM *= -1
+	stepsPerRev := c.TicksPerRotation * uSteps
+	fClk := baseClk / c.CalFactor
+	rampParams := initRampParameters(c.MaxRPM, c.MaxAcceleration, fClk, stepsPerRev)
+	// in config all ramp parameters are optional, we only override the fields that have been set in config
+	rampParams.mergeRampParameters(c.RampParameters)
 
 	m := &Motor{
 		Named:       name.AsNamed(),
 		bus:         bus,
 		csPin:       c.ChipSelect,
 		index:       c.Index,
-		stepsPerRev: c.TicksPerRotation * uSteps,
+		stepsPerRev: stepsPerRev,
 		homeRPM:     c.HomeRPM,
 		maxRPM:      c.MaxRPM,
 		maxAcc:      c.MaxAcceleration,
-		fClk:        baseClk / c.CalFactor,
+		fClk:        fClk,
 		logger:      logger,
 		opMgr:       operation.NewSingleOperationManager(),
 		motorName:   name.ShortName(),
+		rampParams:  rampParams,
 	}
-
-	rawMaxAcc := m.rpmsToA(m.maxAcc)
 
 	if c.SGThresh > 63 {
 		c.SGThresh = 63
@@ -260,17 +325,10 @@ func makeMotor(ctx context.Context, deps resource.Dependencies, c Config, name r
 		m.writeReg(ctx, iHoldIRun, iCfg),
 		m.writeReg(ctx, coolConf, coolConfig), // Sets just the SGThreshold (for now)
 
-		// Set max acceleration and decceleration
-		m.writeReg(ctx, a1, rawMaxAcc),
-		m.writeReg(ctx, aMax, rawMaxAcc),
-		m.writeReg(ctx, d1, rawMaxAcc),
-		m.writeReg(ctx, dMax, rawMaxAcc),
-
-		m.writeReg(ctx, vStart, 1),                         // Always start at min speed
-		m.writeReg(ctx, vStop, 10),                         // Always count a stop as LOW speed, but where vStop > vStart
-		m.writeReg(ctx, v1, m.rpmToV(m.maxRPM/4)),          // Transition ramp at 25% speed (if d1 and a1 are set different)
+		// Set ramp parameters
+		m.applyRampParameters(ctx, m.rampParams),
 		m.writeReg(ctx, vCoolThres, m.rpmToV(m.maxRPM/20)), // Set minimum speed for stall detection and coolstep
-		m.writeReg(ctx, vMax, m.rpmToV(0)),                 // Max velocity to zero, we don't want to move
+		m.writeReg(ctx, vMax, int32(*m.rampParams.VMax)),
 
 		m.writeReg(ctx, rampMode, modeVelPos), // Lastly, set velocity mode to force a stop in case chip was left in moving state
 		m.writeReg(ctx, xActual, 0),           // Zero the position
@@ -405,6 +463,20 @@ func (m *Motor) GetSG(ctx context.Context) (int32, error) {
 	return rawRead, nil
 }
 
+// getvActual reads the actual velocity from the vActual register.
+func (m *Motor) getvActual(ctx context.Context) (int32, error) {
+	rawVel, err := m.readReg(ctx, vActual)
+	if err != nil {
+		return 0, err
+	}
+	// velocity register is signed on 24 bits. So if bit 23 is negative we extend
+	// it to 32 bit.
+	if (rawVel>>23)&1 == 1 {
+		return rawVel - (1 << 24), nil
+	}
+	return rawVel, nil
+}
+
 // Position gives the current motor position.
 func (m *Motor) Position(ctx context.Context, extra map[string]interface{}) (float64, error) {
 	rawPos, err := m.readReg(ctx, xActual)
@@ -499,12 +571,166 @@ func (m *Motor) rpmToV(rpm float64) int32 {
 	return int32(speed)
 }
 
-// Convert rpm/s to TMC5072 steps/taConst^2.
-func (m *Motor) rpmsToA(acc float64) int32 {
+// rpmsToA converts rpm/s to TMC5072 steps/taConst^2.
+func rpmsToA(acc, fClk float64, stepsPerRev int) int32 {
 	// Time constant for accelerations in TMC5072
-	taConst := math.Pow(2, 41) / math.Pow(m.fClk, 2)
-	rawMaxAcc := acc / 60 * float64(m.stepsPerRev) * taConst
+	taConst := math.Pow(2, 41) / math.Pow(fClk, 2)
+	rawMaxAcc := acc / 60 * float64(stepsPerRev) * taConst
 	return int32(rawMaxAcc)
+}
+
+// rpmToV converts rpm to TMC5072 steps/s.
+func rpmToV(rpm, maxRPM, fClk float64, stepsPerRev int) int32 {
+	if rpm > maxRPM {
+		rpm = maxRPM
+	}
+	// Time constant for velocities in TMC5072
+	tConst := fClk / math.Pow(2, 24)
+	speed := rpm / 60 * float64(stepsPerRev) / tConst
+	return int32(speed)
+}
+
+// initRampParameters initializes a rampParameters struct with default values.
+func initRampParameters(maxRPM, maxAcc, fClk float64, stepsPerRev int) rampParameters {
+	rawMaxAcc := uint32(rpmsToA(maxAcc, fClk, stepsPerRev))
+	vStart := uint32(1)
+	vStop := uint32(10)
+	v1 := uint32(rpmToV(maxRPM/4, maxRPM, fClk, stepsPerRev))
+	vMax := uint32(rpmToV(0, maxRPM, fClk, stepsPerRev))
+	return rampParameters{
+		VStart: &vStart,
+		VStop:  &vStop,
+		V1:     &v1,
+		A1:     &rawMaxAcc,
+		D1:     &rawMaxAcc,
+		VMax:   &vMax,
+		AMax:   &rawMaxAcc,
+		DMax:   &rawMaxAcc,
+	}
+}
+
+// mergeRampParameters merges override values into the receiver, with override values taking precedence
+// for any non-nil fields. Updates the receiver in place.
+func (rp *rampParameters) mergeRampParameters(override rampParameters) {
+	if override.VStart != nil {
+		rp.VStart = override.VStart
+	}
+	if override.VStop != nil {
+		rp.VStop = override.VStop
+	}
+	if override.V1 != nil {
+		rp.V1 = override.V1
+	}
+	if override.A1 != nil {
+		rp.A1 = override.A1
+	}
+	if override.D1 != nil {
+		rp.D1 = override.D1
+	}
+	if override.VMax != nil {
+		rp.VMax = override.VMax
+	}
+	if override.AMax != nil {
+		rp.AMax = override.AMax
+	}
+	if override.DMax != nil {
+		rp.DMax = override.DMax
+	}
+}
+
+// parseRampParametersFromExtra extracts ramp_parameters from the extra map and converts it to rampParameters.
+func parseRampParametersFromExtra(rampParamsRaw interface{}) (*rampParameters, error) {
+	rampParamsMap, ok := rampParamsRaw.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("ramp_parameters must be a map[string]interface{} got %T", rampParamsMap)
+	}
+
+	// Helper function to convert various numeric types to uint32
+	toUint32 := func(v interface{}) (uint32, bool) {
+		switch val := v.(type) {
+		case uint32:
+			return val, true
+		case int:
+			return uint32(val), true
+		case int64:
+			return uint32(val), true
+		case float64:
+			return uint32(val), true
+		default:
+			return 0, false
+		}
+	}
+
+	params := &rampParameters{}
+	if val, ok := toUint32(rampParamsMap["v_start"]); ok {
+		params.VStart = &val
+	}
+	if val, ok := toUint32(rampParamsMap["v_stop"]); ok {
+		params.VStop = &val
+	}
+	if val, ok := toUint32(rampParamsMap["v1"]); ok {
+		params.V1 = &val
+	}
+	if val, ok := toUint32(rampParamsMap["a1"]); ok {
+		params.A1 = &val
+	}
+	if val, ok := toUint32(rampParamsMap["d1"]); ok {
+		params.D1 = &val
+	}
+	if val, ok := toUint32(rampParamsMap["v_max"]); ok {
+		params.VMax = &val
+	}
+	if val, ok := toUint32(rampParamsMap["a_max"]); ok {
+		params.AMax = &val
+	}
+	if val, ok := toUint32(rampParamsMap["d_max"]); ok {
+		params.DMax = &val
+	}
+
+	if err := params.validate(); err != nil {
+		return nil, errors.Wrap(err, "couldn't validate passed ramp parameters")
+	}
+
+	return params, nil
+}
+
+// applyRampParameters writes ramp parameters to the motor registers.
+func (m *Motor) applyRampParameters(ctx context.Context, params rampParameters) error {
+	// Check that all pointer fields are set
+	if params.VStart == nil {
+		return errors.New("ramp parameter field 'v_start' is not set")
+	}
+	if params.VStop == nil {
+		return errors.New("ramp parameter field 'v_stop' is not set")
+	}
+	if params.V1 == nil {
+		return errors.New("ramp parameter field 'v1' is not set")
+	}
+	if params.A1 == nil {
+		return errors.New("ramp parameter field 'a1' is not set")
+	}
+	if params.D1 == nil {
+		return errors.New("ramp parameter field 'd1' is not set")
+	}
+	if params.VMax == nil {
+		return errors.New("ramp parameter field 'v_max' is not set")
+	}
+	if params.AMax == nil {
+		return errors.New("ramp parameter field 'a_max' is not set")
+	}
+	if params.DMax == nil {
+		return errors.New("ramp parameter field 'd_max' is not set")
+	}
+
+	return multierr.Combine(
+		m.writeReg(ctx, a1, int32(*params.A1)),
+		m.writeReg(ctx, aMax, int32(*params.AMax)),
+		m.writeReg(ctx, d1, int32(*params.D1)),
+		m.writeReg(ctx, dMax, int32(*params.DMax)),
+		m.writeReg(ctx, vStart, int32(*params.VStart)),
+		m.writeReg(ctx, vStop, int32(*params.VStop)),
+		m.writeReg(ctx, v1, int32(*params.V1)),
+	)
 }
 
 // GoTo moves to the specified position in terms of (provided in revolutions from home/zero),
@@ -513,6 +739,20 @@ func (m *Motor) rpmsToA(acc float64) int32 {
 func (m *Motor) GoTo(ctx context.Context, rpm, positionRevolutions float64, extra map[string]interface{}) error {
 	ctx, done := m.opMgr.New(ctx)
 	defer done()
+
+	// Make a copy of configured ramp parameters
+	rampParams := m.rampParams
+
+	// Merge with extra ramp_parameters if present
+	if extra != nil {
+		if rampParamsRaw, ok := extra["ramp_parameters"]; ok {
+			extraRampParams, err := parseRampParametersFromExtra(rampParamsRaw)
+			if err != nil {
+				return err
+			}
+			rampParams.mergeRampParameters(*extraRampParams)
+		}
+	}
 
 	positionRevolutions *= float64(m.stepsPerRev)
 
@@ -526,6 +766,9 @@ func (m *Motor) GoTo(ctx context.Context, rpm, positionRevolutions float64, extr
 
 	err = multierr.Combine(
 		m.writeReg(ctx, rampMode, modePosition),
+		// Apply ramp parameters
+		m.applyRampParameters(ctx, rampParams),
+		// Apply vMax and target
 		m.writeReg(ctx, vMax, m.rpmToV(math.Abs(rpm))),
 		m.writeReg(ctx, xTarget, int32(positionRevolutions)),
 	)
@@ -533,17 +776,62 @@ func (m *Motor) GoTo(ctx context.Context, rpm, positionRevolutions float64, extr
 		return errors.Wrapf(err, "error in GoTo from motor (%s)", m.motorName)
 	}
 
+	// look for the position reached flag in  the stat register, looking for vzero could lead to
+	// premature stops (the velocity can remain null for a while depending on the configuration)
 	return m.opMgr.WaitForSuccess(
 		ctx,
 		time.Millisecond*10,
-		m.IsStopped,
+		func(ctx context.Context) (bool, error) {
+			stat, err := m.readReg(ctx, rampStat)
+			if err != nil {
+				return false, errors.Wrapf(err, "error in checking position reached (%s)", m.motorName)
+			}
+			return (stat>>9)&0x1 == 1, nil
+		},
 	)
 }
 
 // SetRPM instructs the motor to move at the specified RPM indefinitely.
 func (m *Motor) SetRPM(ctx context.Context, rpm float64, extra map[string]interface{}) error {
 	m.opMgr.CancelRunning(ctx)
-	return m.doJog(ctx, rpm)
+
+	// Make a copy of configured ramp parameters
+	rampParams := m.rampParams
+
+	// Merge with extra ramp_parameters if present
+	if extra != nil {
+		if rampParamsRaw, ok := extra["ramp_parameters"]; ok {
+			extraRampParams, err := parseRampParametersFromExtra(rampParamsRaw)
+			if err != nil {
+				return err
+			}
+			rampParams.mergeRampParameters(*extraRampParams)
+		}
+	}
+
+	mode := modeVelPos
+	if rpm < 0 {
+		mode = modeVelNeg
+	}
+
+	warning, err := motor.CheckSpeed(rpm, m.maxRPM)
+	if rpm != 0 {
+		if warning != "" {
+			m.logger.CWarn(ctx, warning)
+		}
+		if err != nil {
+			m.logger.CError(ctx, err)
+		}
+	}
+
+	speed := m.rpmToV(math.Abs(rpm))
+	return multierr.Combine(
+		m.writeReg(ctx, rampMode, mode),
+		// Apply ramp parameters
+		m.applyRampParameters(ctx, rampParams),
+		// Apply vMax
+		m.writeReg(ctx, vMax, speed),
+	)
 }
 
 // IsPowered returns true if the motor is currently moving.
@@ -709,10 +997,11 @@ func (m *Motor) ResetZeroPosition(ctx context.Context, offset float64, extra map
 
 // DoCommand() related constants.
 const (
-	Command = "command"
-	Home    = "home"
-	Jog     = "jog"
-	RPMVal  = "rpm"
+	Command    = "command"
+	Home       = "home"
+	Jog        = "jog"
+	RPMVal     = "rpm"
+	GetVActual = "get_v_actual"
 )
 
 // DoCommand executes additional commands beyond the Motor{} interface.
@@ -734,6 +1023,12 @@ func (m *Motor) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[
 			return nil, errors.New("rpm value must be floating point")
 		}
 		return nil, m.Jog(ctx, rpm)
+	case GetVActual:
+		vActualVal, err := m.getvActual(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]interface{}{"v_actual": vActualVal}, nil
 	default:
 		return nil, errors.Errorf("no such command: %s", name)
 	}

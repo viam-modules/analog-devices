@@ -133,12 +133,12 @@ func (cfg *Config) Validate(path string) ([]string, []string, error) {
 	}
 	if cfg.SingleTap != nil {
 		if err := cfg.SingleTap.validateTapConfigs(); err != nil {
-			return nil, nil,err
+			return nil, nil, err
 		}
 	}
 	if cfg.FreeFall != nil {
 		if err := cfg.FreeFall.validateFreeFallConfigs(); err != nil {
-			return nil, nil,err
+			return nil, nil, err
 		}
 	}
 	return deps, nil, nil
