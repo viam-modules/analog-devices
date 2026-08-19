@@ -142,14 +142,14 @@ func TestInitializationFailureOnChipCommunication(t *testing.T) {
 			return i2cHandle, nil
 		}
 
-		sensor, err := makeAdxl345(context.Background(), resource.Dependencies{}, cfg, logger, i2c)
+		sensor, err := makeAdxl345(t.Context(), resource.Dependencies{}, cfg, logger, i2c)
 		test.That(t, err, test.ShouldNotBeNil)
 		test.That(t, sensor, test.ShouldBeNil)
 	})
 }
 
 func TestInterrupts(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	callbacks := []chan board.Tick{}
 
 	interrupt := &inject.DigitalInterrupt{}
@@ -284,7 +284,7 @@ func TestInterrupts(t *testing.T) {
 }
 
 func TestReadInterrupts(t *testing.T) {
-	cancelContext, cancelFunc := context.WithCancel(context.Background())
+	cancelContext, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 
 	i2cHandle := &inject.I2CHandle{}
@@ -376,15 +376,15 @@ func TestLinearAcceleration(t *testing.T) {
 
 	logger := logging.NewTestLogger(t)
 	cfg, deps, i2c := setupDependencies(linearAccelMockData)
-	sensor, err := makeAdxl345(context.Background(), deps, cfg, logger, i2c)
+	sensor, err := makeAdxl345(t.Context(), deps, cfg, logger, i2c)
 	test.That(t, err, test.ShouldBeNil)
-	defer sensor.Close(context.Background())
+	defer sensor.Close(t.Context())
 	testutils.WaitForAssertion(t, func(tb testing.TB) {
-		linAcc, err := sensor.LinearAcceleration(context.Background(), nil)
+		linAcc, err := sensor.LinearAcceleration(t.Context(), nil)
 		test.That(tb, err, test.ShouldBeNil)
 		test.That(tb, linAcc, test.ShouldNotBeZeroValue)
 	})
-	accel, err := sensor.LinearAcceleration(context.Background(), nil)
+	accel, err := sensor.LinearAcceleration(t.Context(), nil)
 	test.That(t, err, test.ShouldBeNil)
 	test.That(t, accel.X, test.ShouldEqual, expectedAccelX)
 	test.That(t, accel.Y, test.ShouldEqual, expectedAccelY)

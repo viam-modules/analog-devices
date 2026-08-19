@@ -338,7 +338,7 @@ func makeMotor(ctx context.Context, deps resource.Dependencies, c Config, name r
 	}
 
 	if c.Pins.EnablePinLow != "" {
-		b, err := board.FromDependencies(deps, c.BoardName)
+		b, err := board.FromProvider(deps, c.BoardName)
 		if err != nil {
 			return nil, errors.Errorf("%q is not a board", c.BoardName)
 		}

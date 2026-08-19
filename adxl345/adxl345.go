@@ -313,7 +313,7 @@ func makeAdxl345(
 	}
 
 	if len(interruptList) > 0 {
-		b, err := board.FromDependencies(deps, newConf.BoardName)
+		b, err := board.FromProvider(deps, newConf.BoardName)
 		if err != nil {
 			return nil, err
 		}

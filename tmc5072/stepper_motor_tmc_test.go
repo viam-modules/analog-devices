@@ -80,7 +80,7 @@ func newFakeSpi(tb testing.TB) (*fakeSpiHandle, buses.SPI) {
 const maxRpm = 500
 
 func TestRPMBounds(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	logger, obs := logging.NewObservedTestLogger(t)
 
 	getLastLogLine := func() string {
@@ -133,7 +133,7 @@ func TestRPMBounds(t *testing.T) {
 	test.That(t, err, test.ShouldBeNil)
 	defer func() {
 		fakeSpiHandle.ExpectDone()
-		test.That(t, motorDep.Close(context.Background()), test.ShouldBeNil)
+		test.That(t, motorDep.Close(t.Context()), test.ShouldBeNil)
 	}()
 
 	test.That(t, motorDep.GoFor(ctx, 0.05, 6.6, nil), test.ShouldBeError, motor.NewZeroRPMError())
@@ -180,7 +180,7 @@ func TestRPMBounds(t *testing.T) {
 }
 
 func TestTMCStepperMotor(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	logger := logging.NewTestLogger(t)
 
 	fakeSpiHandle, fakeSpi := newFakeSpi(t)
@@ -220,7 +220,7 @@ func TestTMCStepperMotor(t *testing.T) {
 	test.That(t, err, test.ShouldBeNil)
 	defer func() {
 		fakeSpiHandle.ExpectDone()
-		test.That(t, motorDep.Close(context.Background()), test.ShouldBeNil)
+		test.That(t, motorDep.Close(t.Context()), test.ShouldBeNil)
 	}()
 
 	t.Run("motor supports position reporting", func(t *testing.T) {
@@ -1024,7 +1024,7 @@ func TestTMCStepperMotor(t *testing.T) {
 		m, err := makeMotor(ctx, deps, mc, name, logger, fakeSpi)
 		test.That(t, err, test.ShouldBeNil)
 		fakeSpiHandle.ExpectDone()
-		test.That(t, m.Close(context.Background()), test.ShouldBeNil)
+		test.That(t, m.Close(t.Context()), test.ShouldBeNil)
 	})
 
 	t.Run("test under-limit current settings", func(*testing.T) {
@@ -1055,7 +1055,7 @@ func TestTMCStepperMotor(t *testing.T) {
 		m, err := makeMotor(ctx, deps, mc, name, logger, fakeSpi)
 		test.That(t, err, test.ShouldBeNil)
 		fakeSpiHandle.ExpectDone()
-		test.That(t, m.Close(context.Background()), test.ShouldBeNil)
+		test.That(t, m.Close(t.Context()), test.ShouldBeNil)
 	})
 
 	//nolint:dupl
@@ -1088,11 +1088,11 @@ func TestTMCStepperMotor(t *testing.T) {
 		m, err := makeMotor(ctx, deps, mc, name, logger, fakeSpi)
 		test.That(t, err, test.ShouldBeNil)
 		fakeSpiHandle.ExpectDone()
-		test.That(t, m.Close(context.Background()), test.ShouldBeNil)
+		test.That(t, m.Close(t.Context()), test.ShouldBeNil)
 	})
 	t.Run("motor GoFor with bad rampParameters settings", func(t *testing.T) {
 		// GoFor 1 at 50 rpm with bad ramp parameters
-		//nolint:dupl
+
 		fakeSpiHandle.AddExpectedRx(
 			[][]byte{
 				{33, 0, 0, 0, 0},
